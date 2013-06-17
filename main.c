@@ -262,7 +262,7 @@ int main(int argc,char ** argv)
 			return 1;
 		}
 	}else{
-		uint32_t imgC;
+		uint32_t imgC=0;
 		for (;;imgC++){
 			printf("Saving image %d\n",imgC);
 			if (processImg(Dat,outImg,imgC,debayer,offset))
