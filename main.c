@@ -12,7 +12,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-//to compile type gcc -Wall -Wextra -lm -lpng -o yuv main.c
+//to compile type gcc -Wall -Wextra -lm -lpng -O2 -o yuv main.c
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -119,9 +119,9 @@ void deBayerN(uint8_t * in,uint8_t * out)
 		in+=img_w*2;
 	}
 }
-uint8_t readImg(uint32_t num,uint16_t offset,uint8_t * dat,uint8_t alg)
+uint8_t readImg(uint32_t numf,uint16_t offset,uint8_t * dat,uint8_t alg)
 {
-	sprintf(buf,"F%d.YUV",num);
+	sprintf(buf,"F%d.YUV",numf);
 	FILE * myfile = fopen(buf,"rb");
 	if (myfile==0){
 		printf("Cannot open file %s\n",buf);
@@ -129,11 +129,16 @@ uint8_t readImg(uint32_t num,uint16_t offset,uint8_t * dat,uint8_t alg)
 	}
 	if (offset!=0)
 		fseek(myfile,offset,SEEK_SET);
+	int error=0;
 	if (alg != 0)
-		fread(dat,1,(img_w*img_h)-offset,myfile);
+		error=fread(dat,1,(img_w*img_h)-offset,myfile);
 	else
-		fread(dat,1,(img_w*img_h*2)-offset,myfile);
+		error=fread(dat,1,(img_w*img_h*2)-offset,myfile);
 	fclose(myfile);
+	if(error==0){
+		puts("Error read 0 bytes");
+		exit(1);
+	}
 	return 0;
 }
 uint8_t processImg(uint8_t * in,uint8_t * out,uint32_t numf,uint8_t alg,uint16_t offset)
@@ -151,7 +156,6 @@ uint8_t processImg(uint8_t * in,uint8_t * out,uint32_t numf,uint8_t alg,uint16_t
 		puts("You must pick an algorithm to save the image as");
 		return 1;
 	}
-
 	return 0;
 }
 void avgF(uint16_t numf,uint8_t * inout)
@@ -175,7 +179,7 @@ void avgF(uint16_t numf,uint8_t * inout)
 int main(int argc,char ** argv)
 {
 	uint8_t useNum=0;
-	uint32_t useImg;
+	uint32_t useImg=0;
 	uint16_t offset=0;
 	uint8_t debayer=1;
 	uint16_t numImg=1;
