@@ -39,7 +39,7 @@ void showHelp()
 	puts("-a x replace x with the amount of frames that you wish to averge don't use this if you don't want to average frames");
 	puts("-c picks which algorthim you would like to use you can specify either 'y' or 'd' y means yuv422 conversion and d means to debayer by default debayering conversion is used");
 	puts("-w specifies width (defaults to 640)");
-	puts("-h specifies height (defaults to 480)");
+	puts("-H specifies height (defaults to 480)");
 }
 int savePNG(char * fileName,uint32_t width,uint32_t height,void * ptr)
 {
@@ -206,7 +206,7 @@ int main(int argc,char ** argv)
 				img_w_2=img_w+img_w;
 				continue;
 			}
-			if (strcmp(argv[arg],"-h") == 0){
+			if (strcmp(argv[arg],"-H") == 0){
 				arg++;
 				img_h=atoi(argv[arg]);
 				continue;
@@ -235,7 +235,7 @@ int main(int argc,char ** argv)
 			}
 			if (strcmp(argv[arg],"-h") == 0){
 				showHelp();
-				continue;
+				return 0;
 			}
 		}
 	}
