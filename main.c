@@ -34,7 +34,7 @@ void showHelp()
 {
 	puts("Yuv422/raw image data to png");
 	puts("-n x replace x with the image number you want to convert");
-	puts("-h shows this help file");
+	puts("-h or --help shows this help file");
 	puts("-o x replace x with a real integer between 0 and 7 this sets the offset");
 	puts("-a x replace x with the amount of frames that you wish to averge don't use this if you don't want to average frames");
 	puts("-c picks which algorthim you would like to use you can specify either 'y' or 'd' y means yuv422 conversion and d means to debayer by default debayering conversion is used");
@@ -153,7 +153,7 @@ uint8_t processImg(uint8_t * in,uint8_t * out,uint32_t numf,uint8_t alg,uint16_t
 		yuv2rgb(in,out);
 	break;
 	default:
-		puts("You must pick an algorithm to save the image as");
+		puts("You must pick a valid algorithm to save the image as");
 		return 1;
 	}
 	return 0;
@@ -228,12 +228,12 @@ int main(int argc,char ** argv)
 				useNum=2;
 				numImg=atoi(argv[arg]);
 				if (numImg <1){
-					printf("For argument -a you must specify a number greater than 0");
+					printf("For argument -a you must specify a number greater than 0 you entered %d\n",numImg);
 					return 1;
 				}
 				continue;
 			}
-			if (strcmp(argv[arg],"-h") == 0){
+			if ((strcmp(argv[arg],"-h")==0) || (strcmp(argv[arg],"--help")==0)){
 				showHelp();
 				return 0;
 			}
