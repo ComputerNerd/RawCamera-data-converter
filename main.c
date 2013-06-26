@@ -22,6 +22,8 @@
 uint32_t img_w=640;
 uint32_t img_w_2=1280;
 uint32_t img_h=480;
+uint32_t img_wo=640;
+uint32_t img_ho=480;
 #define CLIP(X) ( (X) > 255 ? 255 : (X) < 0 ? 0 : X)
 #define C(Y) ( (Y) - 16  )
 #define D(U) ( (U) - 128 )
@@ -37,7 +39,7 @@ void showHelp()
 	puts("-h or --help shows this help file");
 	puts("-o x replace x with a real integer between 0 and 7 this sets the offset");
 	puts("-a x replace x with the amount of frames that you wish to averge don't use this if you don't want to average frames");
-	puts("-c picks which algorthim you would like to use you can specify either 'y' or 'd' y means yuv422 conversion and d means to debayer by default debayering conversion is used");
+	puts("-c picks which algorthim you would like to use you can specify either 'y' or 'd' or 'dq'\ny means yuv422 conversion and d means to debayer by default debayering conversion is used dq means to take debayered data and output quater resolution but it does not to any interopulation instead it takes the 4 pixels and makes one\ndn means use neighest neighboor debayer instead of bilinear");
 	puts("-w specifies width (defaults to 640)");
 	puts("-H specifies height (defaults to 480)");
 }
@@ -90,14 +92,90 @@ void yuv2rgb(uint8_t * yuvDat,uint8_t * out)
 		yuvDat+=4;
 	}
 }
+void deBayerBL(uint8_t * in,uint8_t * out)
+{
+	uint32_t x,y;
+	for (y=0;y<img_h*img_w;y+=2*img_w){
+		for (x=0;x<img_w;x+=2){
+			/*	B Gb
+				Gr R*/
+			
+			if(y!=0){
+				if(x!=0)
+					out[x*3]=(in[y+x+1+img_w]+in[y+x+1-img_w]+in[y+x-1+img_w]+in[y+x-1-img_w])/4;//red
+				else
+					out[x*3]=(in[y+x+1+img_w]+in[y+x+1-img_w])/2;//red
+			}else{
+				if(x!=0)
+					out[x*3]=(in[y+x+1+img_w]+in[y+x-1+img_w])/2;//red
+				else
+					out[x*3]=in[y+x+1+img_w];//red
+			}
+			if(x!=0)//edges need special handling
+				out[(x*3)+1]=(in[y+x-1]+in[y+x+1])/2;//green
+			else
+				out[(x*3)+1]=in[y+x+1];//green
+			out[(x*3)+2]=in[y+x];//blue
+			uint8_t r,b;
+			if(y!=0)
+				r=(in[y+x+1+img_w]+in[y+x+1-img_w])/2;//red
+			else
+				r=in[y+x+1+img_w];
+			out[(x*3)+3]=r;
+			out[(x*3)+4]=in[y+x+1];//green
+			b=(in[y+x]+in[y+x+img_w_2])/2;
+			out[(x*3)+5]=b;//blue
+			
+			out[((x+img_w)*3)]=r;
+			out[((x+img_w)*3)+1]=in[y+x+img_w];
+			out[((x+img_w)*3)+2]=b;
+			
+			out[((x+img_w)*3)+3]=in[y+x+1+img_w];//red
+			out[((x+img_w)*3)+4]=in[y+x+img_w];//green
+			if(y!=0){//blue
+				out[((x+img_w)*3)+5]=(in[y+x+2-img_w_2]+in[y+x-img_w_2]+in[y+x+2+img_w_2]+in[y+x+img_w_2])/4;
+			}else{
+				out[((x+img_w)*3)+5]=(in[y+x+2+img_w_2]+in[y+x+img_w_2])/2;
+			}
+		}
+		out+=img_w*6;
+		//in+=img_w_2;
+	}
+	
+}
+void deBayerSSDD(uint8_t * in,uint8_t * out)
+{//from http://www.ipol.im/pub/art/2011/bcms-ssdd/
+	uint32_t x,y;
+	for (y=0;y<img_h;y+=2){
+		for (x=0;x<img_w;x+=2){
+			/*B Gb
+			  Gr R*/
+			out[x*3]=in[x];
+		}
+	}
+	
+}
+void deBayerQ(uint8_t * in,uint8_t * out)
+{//generates quater resolution but pixel has real RGB value at each location
+	uint32_t x,y;
+	for (y=0;y<img_ho;++y){
+		for (x=0;x<img_w;x+=2){
+			out[(x/2*3)]=in[x+1+img_w];//red
+			out[(x/2*3)+1]=(in[x+1]+in[x+img_w])/2;//green
+			out[(x/2*3)+2]=in[x];//blue
+		}
+		out+=img_wo*3;
+		in+=img_w*2;
+	}
+}
 void deBayerN(uint8_t * in,uint8_t * out)
 {
 	uint32_t x,y;
 	for (y=0;y<img_h;y+=2){
 		for (x=0;x<img_w;x+=2){
 			/* Correct table: (It is slightly different than the most common R G G B tables)
-			 B G
-			 G R
+			 B Gb
+			 Gr R
 			*/ 
 			out[(x*3)]=in[x+1+img_w];//red 
 			out[(x*3)+1]=in[x+1];//green
@@ -121,7 +199,10 @@ void deBayerN(uint8_t * in,uint8_t * out)
 }
 uint8_t readImg(uint32_t numf,uint16_t offset,uint8_t * dat,uint8_t alg)
 {
-	sprintf(buf,"F%d.YUV",numf);
+	if(alg!=0)
+		sprintf(buf,"F%d.RAW",numf);
+	else
+		sprintf(buf,"F%d.YUV",numf);
 	FILE * myfile = fopen(buf,"rb");
 	if (myfile==0){
 		printf("Cannot open file %s\n",buf);
@@ -146,8 +227,14 @@ uint8_t processImg(uint8_t * in,uint8_t * out,uint32_t numf,uint8_t alg,uint16_t
 	if (readImg(numf,offset,in,alg))
 		return 1;
 	switch (alg){
+	case 3:
+		deBayerBL(in,out);
+	break;
+	case 2:
+		deBayerQ(in,out);//causes low resolution but it's like have a 3cmos sensor or foveon sensor
+	break;
 	case 1:
-		deBayerN(in,out);//nearest neighboor low quality try to avoid using I will implant another one soon
+		deBayerN(in,out);//nearest neighboor low quality but fast
 	break;
 	case 0:
 		yuv2rgb(in,out);
@@ -181,7 +268,7 @@ int main(int argc,char ** argv)
 	uint8_t useNum=0;
 	uint32_t useImg=0;
 	uint16_t offset=0;
-	uint8_t debayer=1;
+	uint8_t debayer=3;
 	uint16_t numImg=1;
 	if (argc>1){
 		//handle arguments
@@ -192,6 +279,10 @@ int main(int argc,char ** argv)
 				if(strcmp(argv[arg],"y")==0)
 					debayer=0;
 				else if(strcmp(argv[arg],"d")==0)
+					debayer=3;
+				else if(strcmp(argv[arg],"dq")==0)
+					debayer=2;
+				else if(strcmp(argv[arg],"dn")==0)
 					debayer=1;
 				else{
 					puts("You did not specify a valid algorithm See usage (below)");
@@ -202,13 +293,13 @@ int main(int argc,char ** argv)
 			}
 			if (strcmp(argv[arg],"-w") == 0){
 				arg++;
-				img_w=atoi(argv[arg]);
+				img_wo=img_w=atoi(argv[arg]);
 				img_w_2=img_w+img_w;
 				continue;
 			}
 			if (strcmp(argv[arg],"-H") == 0){
 				arg++;
-				img_h=atoi(argv[arg]);
+				img_ho=img_h=atoi(argv[arg]);
 				continue;
 			}
 			if (strcmp(argv[arg],"-n") == 0){
@@ -244,11 +335,15 @@ int main(int argc,char ** argv)
 		Dat = calloc(img_w*img_h,1);
 	else
 		Dat = calloc(img_w*img_h,2);
-	uint8_t * outImg = malloc(img_w*img_h*numImg*3);//all bytes in the array will be overwritten no need for calloc
+	if(debayer==2){
+		img_wo/=2;
+		img_ho/=2;
+	}
+	uint8_t * outImg = malloc(img_wo*img_ho*numImg*3);//all bytes in the array will be overwritten no need for calloc
 	if (useNum==1){
 		processImg(Dat,outImg,useImg,debayer,offset);
 		sprintf(buf,"frame %d.png",useImg);
-		if (savePNG(buf,img_w,img_h,outImg)){
+		if (savePNG(buf,img_wo,img_ho,outImg)){
 			puts("Error while saving PNG");
 			return 1;
 		}
@@ -257,11 +352,11 @@ int main(int argc,char ** argv)
 		uint32_t nl;
 		for (nl=0;nl<numImg;nl++){
 			printf("Reading %d\n",nl);
-			processImg(Dat,outImg+(nl*img_w*img_h*3),useImg+nl,debayer,offset);
+			processImg(Dat,outImg+(nl*img_wo*img_ho*3),useImg+nl,debayer,offset);
 		}
 		avgF(numImg,outImg);
 		sprintf(buf,"frame %d-%d.png",useImg,useImg+numImg-1);
-		if (savePNG(buf,img_w,img_h,outImg)){
+		if (savePNG(buf,img_wo,img_ho,outImg)){
 			puts("Error while saving PNG");
 			return 1;
 		}
@@ -272,7 +367,7 @@ int main(int argc,char ** argv)
 			if (processImg(Dat,outImg,imgC,debayer,offset))
 				goto quit;
 			sprintf(buf,"frame %d.png",imgC);
-			if (savePNG(buf,img_w,img_h,outImg)){
+			if (savePNG(buf,img_wo,img_ho,outImg)){
 				puts("Error while saving PNG");
 				return 1;
 			}
