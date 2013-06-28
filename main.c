@@ -32,6 +32,8 @@ uint32_t img_ho=480;
 #define YUV2G(Y, U, V) CLIP(( 298 * C(Y) - 100 * D(U) - 208 * E(V) + 128) >> 8)
 #define YUV2B(Y, U, V) CLIP(( 298 * C(Y) + 516 * D(U)              + 128) >> 8)
 char buf[1024];
+const uint8_t sqrt_tab[]={0,16,23,28,32,36,39,42,45,48,50,53,55,58,60,62,64,66,68,70,71,73,75,77,78,80,81,83,84,86,87,89,90,92,93,94,96,97,98,100,101,102,103,105,106,107,108,109,111,112,113,114,115,116,117,118,119,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,135,136,137,138,139,140,141,142,143,144,145,145,146,147,148,149,150,151,151,152,153,154,155,156,156,157,158,159,160,160,161,162,163,164,164,165,166,167,167,168,169,170,170,171,172,173,173,174,175,176,176,177,178,179,179,180,181,181,182,183,183,184,185,186,186,187,188,188,189,190,190,191,192,192,193,194,194,195,196,196,197,198,198,199,199,200,201,201,202,203,203,204,204,205,206,206,207,208,208,209,209,210,211,211,212,212,213,214,214,215,215,216,217,217,218,218,219,220,220,221,221,222,222,223,224,224,225,225,226,226,227,228,228,229,229,230,230,231,231,232,233,233,234,234,235,235,236,236,237,237,238,238,239,240,240,241,241,242,242,243,243,244,244,245,245,246,246,247,247,248,248,249,249,250,250,251,251,252,252,253,253,254,254,255};
+const uint8_t sine_tab[]={0, 2, 3, 5, 6, 8, 9,11,12,14,15,17,18,20,21,23,24,26,27,29,30,32,33,35,36,38,39,41,42,44,45,47,48,50,51,53,54,56,57, 59, 60, 61, 63, 64, 66, 67, 69, 70, 72, 73, 75, 76, 77, 79, 80, 82, 83, 85, 86, 88, 89, 90, 92, 93, 95, 96, 97, 99,100,102,103,104,106,107,108,110,111,113,114,115,117,118,119,121,122,123,125,126,127,129,130,131,132,134,135,136,138,139,140,141,143,144,145,146,148,149,150,151,153,154,155,156,157,159,160,161,162,163,164,166,167,168,169,170,171,172,173,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,207,208,209,210,211,212,213,213,214,215,216,217,217,218,219,220,221,221,222,223,224,224,225,226,226,227,228,228,229,230,230,231,232,232,233,234,234,235,235,236,236,237,238,238,239,239,240,240,241,241,242,242,243,243,244,244,244,245,245,246,246,247,247,247,248,248,248,249,249,249,250,250,250,251,251,251,251,252,252,252,252,253,253,253,253,253,253,254,254,254,254,254,254,254,254,255};
 void showHelp()
 {
 	puts("Yuv422/raw image data to png");
@@ -42,14 +44,14 @@ void showHelp()
 	puts("-c picks which algorthim you would like to use you can specify either 'y' or 'd' or 'dq'\ny means yuv422 conversion and d means to debayer by default debayering conversion is used dq means to take debayered data and output quater resolution but it does not to any interopulation instead it takes the 4 pixels and makes one\ndn means use neighest neighboor debayer instead of bilinear");
 	puts("-w specifies width (defaults to 640)");
 	puts("-H specifies height (defaults to 480)");
+	puts("-sq squrate root curves the image (makes it brighter without clipping highlights using this forumla sqrt(255.0)*sqrt(x)");
+	puts("-s sine curves the image using this formula (int)floor((sin((double)x/(255.0/PI*2.075))*255.0)+0.5)");
+	puts("-sq and -s can be combined");
 }
 int savePNG(char * fileName,uint32_t width,uint32_t height,void * ptr)
 {
 	//saves a 24bit png with rgb byte order
 	png_byte * dat=ptr;//convert to uint8_t
-	//png_byte **row_pointers = malloc(height*sizeof(png_byte));
-	//if (row_pointers==0)
-	//	return 1;
 	FILE * fp=fopen(fileName,"wb");
 	if (fp==0)
 		return 1;
@@ -143,6 +145,10 @@ void deBayerBL(uint8_t * in,uint8_t * out)
 	}
 	
 }
+void deBayerV(uint8_t * in,uint8_t * out)
+{//from http://www.eie.polyu.edu.hk/~enyhchan/J-TIP-CDemosaicking_using_VarCD.pdf
+	
+}
 void deBayerSSDD(uint8_t * in,uint8_t * out)
 {//from http://www.ipol.im/pub/art/2011/bcms-ssdd/
 	uint32_t x,y;
@@ -222,7 +228,7 @@ uint8_t readImg(uint32_t numf,uint16_t offset,uint8_t * dat,uint8_t alg)
 	}
 	return 0;
 }
-uint8_t processImg(uint8_t * in,uint8_t * out,uint32_t numf,uint8_t alg,uint16_t offset)
+uint8_t processImg(uint8_t * in,uint8_t * out,uint32_t numf,uint8_t alg,uint16_t offset,uint8_t sqrtUse,uint8_t sineUse)
 {
 	if (readImg(numf,offset,in,alg))
 		return 1;
@@ -242,6 +248,21 @@ uint8_t processImg(uint8_t * in,uint8_t * out,uint32_t numf,uint8_t alg,uint16_t
 	default:
 		puts("You must pick a valid algorithm to save the image as");
 		return 1;
+	}
+	if(sineUse){
+		uint32_t l=img_wo*img_ho*3;
+		while(l--){
+			*out=sine_tab[*out];
+			++out;
+		}
+		out-=img_wo*img_ho*3;
+	}
+	if(sqrtUse){
+		uint32_t l=img_wo*img_ho*3;
+		while(l--){
+			*out=sqrt_tab[*out];
+			++out;
+		}
 	}
 	return 0;
 }
@@ -270,6 +291,8 @@ int main(int argc,char ** argv)
 	uint16_t offset=0;
 	uint8_t debayer=3;
 	uint16_t numImg=1;
+	uint8_t sqrtUse=0;
+	uint8_t sineUse=0;
 	if (argc>1){
 		//handle arguments
 		int arg;
@@ -295,6 +318,14 @@ int main(int argc,char ** argv)
 				arg++;
 				img_wo=img_w=atoi(argv[arg]);
 				img_w_2=img_w+img_w;
+				continue;
+			}
+			if (strcmp(argv[arg],"-s") == 0){
+				sineUse=1;
+				continue;
+			}
+			if (strcmp(argv[arg],"-sq") == 0){
+				sqrtUse=1;
 				continue;
 			}
 			if (strcmp(argv[arg],"-H") == 0){
@@ -341,7 +372,7 @@ int main(int argc,char ** argv)
 	}
 	uint8_t * outImg = malloc(img_wo*img_ho*numImg*3);//all bytes in the array will be overwritten no need for calloc
 	if (useNum==1){
-		processImg(Dat,outImg,useImg,debayer,offset);
+		processImg(Dat,outImg,useImg,debayer,offset,sqrtUse,sineUse);
 		sprintf(buf,"frame %d.png",useImg);
 		if (savePNG(buf,img_wo,img_ho,outImg)){
 			puts("Error while saving PNG");
@@ -352,7 +383,7 @@ int main(int argc,char ** argv)
 		uint32_t nl;
 		for (nl=0;nl<numImg;nl++){
 			printf("Reading %d\n",nl);
-			processImg(Dat,outImg+(nl*img_wo*img_ho*3),useImg+nl,debayer,offset);
+			processImg(Dat,outImg+(nl*img_wo*img_ho*3),useImg+nl,debayer,offset,sqrtUse,sineUse);
 		}
 		avgF(numImg,outImg);
 		sprintf(buf,"frame %d-%d.png",useImg,useImg+numImg-1);
@@ -364,7 +395,7 @@ int main(int argc,char ** argv)
 		uint32_t imgC=0;
 		for (;;imgC++){
 			printf("Saving image %d\n",imgC);
-			if (processImg(Dat,outImg,imgC,debayer,offset))
+			if (processImg(Dat,outImg,imgC,debayer,offset,sqrtUse,sineUse))
 				goto quit;
 			sprintf(buf,"frame %d.png",imgC);
 			if (savePNG(buf,img_wo,img_ho,outImg)){
