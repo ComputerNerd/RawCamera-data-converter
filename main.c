@@ -41,7 +41,7 @@ void showHelp()
 	puts("-h or --help shows this help file");
 	puts("-o x replace x with a real integer between 0 and 7 this sets the offset");
 	puts("-a x replace x with the amount of frames that you wish to averge don't use this if you don't want to average frames");
-	puts("-c picks which algorthim you would like to use you can specify either 'y' or 'd' or 'dq'\ny means yuv422 conversion and d means to debayer by default debayering conversion is used dq means to take debayered data and output quater resolution but it does not to any interopulation instead it takes the 4 pixels and makes one\ndn means use neighest neighboor debayer instead of bilinear");
+	puts("-c picks which algorthim you would like to use you can specify either 'y' or 'd' or 'dq'\ny means yuv422 conversion and d means to debayer by default debayering conversion is used dq means to take debayered data and output quater resolution but it does not to any interopulation instead it takes the 4 pixels and makes one\ndn means use neighest neighboor debayer instead of bilinear\nr means rgb565");
 	puts("-w specifies width (defaults to 640)");
 	puts("-H specifies height (defaults to 480)");
 	puts("-sq squrate root curves the image (makes it brighter without clipping highlights using this forumla sqrt(255.0)*sqrt(x)");
@@ -83,8 +83,8 @@ int savePNG(char * fileName,uint32_t width,uint32_t height,void * ptr)
 }
 void yuv2rgb(uint8_t * yuvDat,uint8_t * out)
 {
-	uint64_t xy;
-	for (xy=0;xy<(img_w/2)*img_h;xy++){
+	uint32_t xy;
+	for (xy=0;xy<(img_w/2)*img_h;++xy){
 		*out++=YUV2R(yuvDat[0],yuvDat[1],yuvDat[3]);
 		*out++=YUV2G(yuvDat[0],yuvDat[1],yuvDat[3]);
 		*out++=YUV2B(yuvDat[0],yuvDat[1],yuvDat[3]);
@@ -217,10 +217,10 @@ uint8_t readImg(uint32_t numf,uint16_t offset,uint8_t * dat,uint8_t alg)
 	if (offset!=0)
 		fseek(myfile,offset,SEEK_SET);
 	int error=0;
-	if (alg != 0)
+	if (alg!=0&&alg!=4)
 		error=fread(dat,1,(img_w*img_h)-offset,myfile);
 	else
-		error=fread(dat,1,(img_w*img_h*2)-offset,myfile);
+		error=fread(dat,1,(img_w_2*img_h)-offset,myfile);
 	fclose(myfile);
 	if(error==0){
 		puts("Error read 0 bytes");
@@ -228,11 +228,26 @@ uint8_t readImg(uint32_t numf,uint16_t offset,uint8_t * dat,uint8_t alg)
 	}
 	return 0;
 }
+void rgb565torgb888(uint8_t * in,uint8_t * out)
+{
+	uint32_t xy;
+	for (xy=0;xy<img_w*img_h;++xy){
+		// R R R R R G G G   G G G B B B B B
+		*out++=*in&248;
+		*out++=((*in&7)<<5)|((in[1]&224)>>2);
+		++in;
+		*out++=*in<<3;
+		++in;
+	}
+}
 uint8_t processImg(uint8_t * in,uint8_t * out,uint32_t numf,uint8_t alg,uint16_t offset,uint8_t sqrtUse,uint8_t sineUse)
 {
 	if (readImg(numf,offset,in,alg))
 		return 1;
 	switch (alg){
+	case 4:
+		rgb565torgb888(in,out);
+	break;
 	case 3:
 		deBayerBL(in,out);
 	break;
@@ -307,6 +322,8 @@ int main(int argc,char ** argv)
 					debayer=2;
 				else if(strcmp(argv[arg],"dn")==0)
 					debayer=1;
+				else if(strcmp(argv[arg],"r")==0)
+					debayer=4;
 				else{
 					puts("You did not specify a valid algorithm See usage (below)");
 					showHelp();
@@ -362,7 +379,7 @@ int main(int argc,char ** argv)
 		}
 	}
 	uint8_t * Dat;//in case some of the file was not saved we use calloc instead of malloc to garentte that the unsaved pixels are set to 0
-	if (debayer!=0)
+	if (debayer!=0&&debayer!=4)
 		Dat = calloc(img_w*img_h,1);
 	else
 		Dat = calloc(img_w*img_h,2);
