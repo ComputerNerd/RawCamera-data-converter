@@ -12,7 +12,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-//to compile type gcc -Wall -Wextra -lm -lpng -O2 -o yuv main.c
+//to compile type gcc -Wall -Wextra -lm -lpng -O2 -s -o yuv main.c
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,7 +41,9 @@ void showHelp()
 	puts("-h or --help shows this help file");
 	puts("-o x replace x with a real integer between 0 and 7 this sets the offset");
 	puts("-a x replace x with the amount of frames that you wish to averge don't use this if you don't want to average frames");
-	puts("-c picks which algorthim you would like to use you can specify either 'y' or 'd' or 'dq'\ny means yuv422 conversion and d means to debayer by default debayering conversion is used dq means to take debayered data and output quater resolution but it does not to any interopulation instead it takes the 4 pixels and makes one\ndn means use neighest neighboor debayer instead of bilinear\nr means rgb565");
+	puts("-c picks which algorthim you would like to use you can specify either 'y' or 'd' or 'dq' or 'dn' or 'dl' but without the quoes");
+	puts("y means yuv422 conversion\nd means to debayer by default debayering conversion is used\ndq means to take debayered data and output quater resolution but it does not to any interopulation instead it takes the 4 one color pixels and makes one\ndn means use neighest neighboor debayer instead of bilinear\nr means rgb565");
+	puts("dl is a higher quality algorithm based on https://research.microsoft.com/en-us/um/people/lhe/papers/icassp04.demosaicing.pdf");
 	puts("-w specifies width (defaults to 640)");
 	puts("-H specifies height (defaults to 480)");
 	puts("-sq squrate root curves the image (makes it brighter without clipping highlights using this forumla sqrt(255.0)*sqrt(x)");
@@ -94,8 +96,22 @@ void yuv2rgb(uint8_t * yuvDat,uint8_t * out)
 		yuvDat+=4;
 	}
 }
-void deBayerBL(uint8_t * in,uint8_t * out)
-{
+void deBayerHQl(uint8_t *in,uint8_t * out){
+	//from https://research.microsoft.com/en-us/um/people/lhe/papers/icassp04.demosaicing.pdf
+	uint32_t x,y;
+	for (y=0;y<img_h*img_w;y+=2*img_w){
+		for (x=0;x<img_w;x+=2){
+			/*	B Gb
+				Gr R*/
+			out[(x*3)+2]=in[x+y];
+			out[(x*3)+4]=in[x+y+1];
+			out[((x+img_w)*3)+1]=in[x+y+img_w];
+			out[((x+img_w)*3)+3]=in[x+y+img_w+1];
+		}
+		out+=img_w*6;
+	}
+}
+void deBayerBL(uint8_t * in,uint8_t * out){
 	uint32_t x,y;
 	for (y=0;y<img_h*img_w;y+=2*img_w){
 		for (x=0;x<img_w;x+=2){
@@ -174,8 +190,7 @@ void deBayerQ(uint8_t * in,uint8_t * out)
 		in+=img_w*2;
 	}
 }
-void deBayerN(uint8_t * in,uint8_t * out)
-{
+void deBayerN(uint8_t * in,uint8_t * out){
 	uint32_t x,y;
 	for (y=0;y<img_h;y+=2){
 		for (x=0;x<img_w;x+=2){
@@ -203,8 +218,7 @@ void deBayerN(uint8_t * in,uint8_t * out)
 		in+=img_w*2;
 	}
 }
-uint8_t readImg(uint32_t numf,uint16_t offset,uint8_t * dat,uint8_t alg)
-{
+uint8_t readImg(uint32_t numf,uint16_t offset,uint8_t * dat,uint8_t alg){
 	if(alg!=0)
 		sprintf(buf,"F%d.RAW",numf);
 	else
@@ -228,8 +242,7 @@ uint8_t readImg(uint32_t numf,uint16_t offset,uint8_t * dat,uint8_t alg)
 	}
 	return 0;
 }
-void rgb565torgb888(uint8_t * in,uint8_t * out)
-{
+void rgb565torgb888(uint8_t * in,uint8_t * out){
 	uint32_t xy;
 	for (xy=0;xy<img_w*img_h;++xy){
 		// R R R R R G G G   G G G B B B B B
@@ -245,6 +258,9 @@ uint8_t processImg(uint8_t * in,uint8_t * out,uint32_t numf,uint8_t alg,uint16_t
 	if (readImg(numf,offset,in,alg))
 		return 1;
 	switch (alg){
+	case 5:
+		deBayerHQl(in,out);
+	break;
 	case 4:
 		rgb565torgb888(in,out);
 	break;
@@ -324,6 +340,8 @@ int main(int argc,char ** argv)
 					debayer=1;
 				else if(strcmp(argv[arg],"r")==0)
 					debayer=4;
+				else if(strcmp(argv[arg],"dl")==0)
+					debayer=5;
 				else{
 					puts("You did not specify a valid algorithm See usage (below)");
 					showHelp();
