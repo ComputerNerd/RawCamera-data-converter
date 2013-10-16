@@ -31,15 +31,17 @@ uint32_t img_ho=480;
 #define YUV2R(Y, U, V) CLIP(( 298 * C(Y)              + 409 * E(V) + 128) >> 8)
 #define YUV2G(Y, U, V) CLIP(( 298 * C(Y) - 100 * D(U) - 208 * E(V) + 128) >> 8)
 #define YUV2B(Y, U, V) CLIP(( 298 * C(Y) + 516 * D(U)              + 128) >> 8)
-char buf[1024];
+//char buf[1024];
+char * buf;
 const uint8_t sqrt_tab[]={0,16,23,28,32,36,39,42,45,48,50,53,55,58,60,62,64,66,68,70,71,73,75,77,78,80,81,83,84,86,87,89,90,92,93,94,96,97,98,100,101,102,103,105,106,107,108,109,111,112,113,114,115,116,117,118,119,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,135,136,137,138,139,140,141,142,143,144,145,145,146,147,148,149,150,151,151,152,153,154,155,156,156,157,158,159,160,160,161,162,163,164,164,165,166,167,167,168,169,170,170,171,172,173,173,174,175,176,176,177,178,179,179,180,181,181,182,183,183,184,185,186,186,187,188,188,189,190,190,191,192,192,193,194,194,195,196,196,197,198,198,199,199,200,201,201,202,203,203,204,204,205,206,206,207,208,208,209,209,210,211,211,212,212,213,214,214,215,215,216,217,217,218,218,219,220,220,221,221,222,222,223,224,224,225,225,226,226,227,228,228,229,229,230,230,231,231,232,233,233,234,234,235,235,236,236,237,237,238,238,239,240,240,241,241,242,242,243,243,244,244,245,245,246,246,247,247,248,248,249,249,250,250,251,251,252,252,253,253,254,254,255};
 const uint8_t sine_tab[]={0, 2, 3, 5, 6, 8, 9,11,12,14,15,17,18,20,21,23,24,26,27,29,30,32,33,35,36,38,39,41,42,44,45,47,48,50,51,53,54,56,57, 59, 60, 61, 63, 64, 66, 67, 69, 70, 72, 73, 75, 76, 77, 79, 80, 82, 83, 85, 86, 88, 89, 90, 92, 93, 95, 96, 97, 99,100,102,103,104,106,107,108,110,111,113,114,115,117,118,119,121,122,123,125,126,127,129,130,131,132,134,135,136,138,139,140,141,143,144,145,146,148,149,150,151,153,154,155,156,157,159,160,161,162,163,164,166,167,168,169,170,171,172,173,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,207,208,209,210,211,212,213,213,214,215,216,217,217,218,219,220,221,221,222,223,224,224,225,226,226,227,228,228,229,230,230,231,232,232,233,234,234,235,235,236,236,237,238,238,239,239,240,240,241,241,242,242,243,243,244,244,244,245,245,246,246,247,247,247,248,248,248,249,249,249,250,250,250,251,251,251,251,252,252,252,252,253,253,253,253,253,253,254,254,254,254,254,254,254,254,255};
 void showHelp()
 {
 	puts("Yuv422/raw image data to png");
+	puts("-f specify filename");
 	puts("-n x replace x with the image number you want to convert");
 	puts("-h or --help shows this help file");
-	puts("-o x replace x with a real integer between 0 and 7 this sets the offset");
+	puts("-o x replace x with a real positive integer that is less than the filesize of the image in which you are opening\nThis skips x number of bytes");
 	puts("-a x replace x with the amount of frames that you wish to averge don't use this if you don't want to average frames");
 	puts("-c picks which algorthim you would like to use you can specify either 'y' or 'd' or 'dq' or 'dn' or 'dl' but without the quoes");
 	puts("y means yuv422 conversion\nd means to debayer by default debayering conversion is used\ndq means to take debayered data and output quater resolution but it does not to any interopulation instead it takes the 4 one color pixels and makes one\ndn means use neighest neighboor debayer instead of bilinear\nr means rgb565");
@@ -218,14 +220,21 @@ void deBayerN(uint8_t * in,uint8_t * out){
 		in+=img_w*2;
 	}
 }
-uint8_t readImg(uint32_t numf,uint16_t offset,uint8_t * dat,uint8_t alg){
-	if(alg!=0)
-		sprintf(buf,"F%d.RAW",numf);
-	else
-		sprintf(buf,"F%d.YUV",numf);
-	FILE * myfile = fopen(buf,"rb");
+uint8_t readImg(uint32_t numf,uint16_t offset,uint8_t * dat,uint8_t alg,char * fileName){
+	FILE * myfile;
+	if(fileName==0){
+		if(alg!=0)
+			sprintf(buf,"F%d.RAW",numf);
+		else
+			sprintf(buf,"F%d.YUV",numf);
+		myfile = fopen(buf,"rb");
+	}else
+		myfile = fopen(fileName,"rb");
 	if (myfile==0){
-		printf("Cannot open file %s\n",buf);
+		if(fileName==0)
+			printf("Cannot open file %s\n",buf);
+		else
+			printf("Cannot open file %s\n",fileName);
 		return 1;
 	}
 	if (offset!=0)
@@ -253,9 +262,8 @@ void rgb565torgb888(uint8_t * in,uint8_t * out){
 		++in;
 	}
 }
-uint8_t processImg(uint8_t * in,uint8_t * out,uint32_t numf,uint8_t alg,uint16_t offset,uint8_t sqrtUse,uint8_t sineUse)
-{
-	if (readImg(numf,offset,in,alg))
+uint8_t processImg(uint8_t * in,uint8_t * out,uint32_t numf,uint8_t alg,uint16_t offset,uint8_t sqrtUse,uint8_t sineUse,char * fileName){
+	if (readImg(numf,offset,in,alg,fileName))
 		return 1;
 	switch (alg){
 	case 5:
@@ -297,8 +305,7 @@ uint8_t processImg(uint8_t * in,uint8_t * out,uint32_t numf,uint8_t alg,uint16_t
 	}
 	return 0;
 }
-void avgF(uint16_t numf,uint8_t * inout)
-{
+void avgF(uint16_t numf,uint8_t * inout){
 	uint16_t * temp=malloc(img_w*img_h*3*numf*sizeof(uint16_t));
 	uint64_t xy;
 	uint64_t nl;
@@ -315,8 +322,7 @@ void avgF(uint16_t numf,uint8_t * inout)
 		inout[xy]=temp[xy];
 	free(temp);
 }
-int main(int argc,char ** argv)
-{
+int main(int argc,char ** argv){
 	uint8_t useNum=0;
 	uint32_t useImg=0;
 	uint16_t offset=0;
@@ -324,6 +330,8 @@ int main(int argc,char ** argv)
 	uint16_t numImg=1;
 	uint8_t sqrtUse=0;
 	uint8_t sineUse=0;
+	char * fileName=0;
+	buf=malloc(128);
 	if (argc>1){
 		//handle arguments
 		int arg;
@@ -375,6 +383,13 @@ int main(int argc,char ** argv)
 					useNum=1;
 				continue;
 			}
+			if (strcmp(argv[arg],"-f") == 0){
+				++arg;
+				useNum=3;
+				fileName=argv[arg];
+				buf=realloc(buf,strlen(fileName)+64);
+				continue;
+			}
 			if (strcmp(argv[arg],"-o") == 0){
 				arg++;
 				offset=atoi(argv[arg]);
@@ -407,8 +422,16 @@ int main(int argc,char ** argv)
 	}
 	uint8_t * outImg = malloc(img_wo*img_ho*numImg*3);//all bytes in the array will be overwritten no need for calloc
 	if (useNum==1){
-		processImg(Dat,outImg,useImg,debayer,offset,sqrtUse,sineUse);
+		processImg(Dat,outImg,useImg,debayer,offset,sqrtUse,sineUse,0);
 		sprintf(buf,"frame %d.png",useImg);
+		if (savePNG(buf,img_wo,img_ho,outImg)){
+			puts("Error while saving PNG");
+			return 1;
+		}
+	}
+	else if (useNum==3){
+		processImg(Dat,outImg,useImg,debayer,offset,sqrtUse,sineUse,fileName);
+		sprintf(buf,"%s.png",fileName);
 		if (savePNG(buf,img_wo,img_ho,outImg)){
 			puts("Error while saving PNG");
 			return 1;
@@ -418,7 +441,7 @@ int main(int argc,char ** argv)
 		uint32_t nl;
 		for (nl=0;nl<numImg;nl++){
 			printf("Reading %d\n",nl);
-			processImg(Dat,outImg+(nl*img_wo*img_ho*3),useImg+nl,debayer,offset,sqrtUse,sineUse);
+			processImg(Dat,outImg+(nl*img_wo*img_ho*3),useImg+nl,debayer,offset,sqrtUse,sineUse,0);
 		}
 		avgF(numImg,outImg);
 		sprintf(buf,"frame %d-%d.png",useImg,useImg+numImg-1);
@@ -430,7 +453,7 @@ int main(int argc,char ** argv)
 		uint32_t imgC=0;
 		for (;;imgC++){
 			printf("Saving image %d\n",imgC);
-			if (processImg(Dat,outImg,imgC,debayer,offset,sqrtUse,sineUse))
+			if (processImg(Dat,outImg,imgC,debayer,offset,sqrtUse,sineUse,0))
 				goto quit;
 			sprintf(buf,"frame %d.png",imgC);
 			if (savePNG(buf,img_wo,img_ho,outImg)){
