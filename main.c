@@ -50,8 +50,7 @@ void showHelp()
 	puts("-s sine curves the image using this formula (int)floor((sin((double)x/(255.0/PI*2.075))*255.0)+0.5)");
 	puts("-sq and -s can be combined");
 }
-int savePNG(char * fileName,uint32_t width,uint32_t height,void * ptr)
-{
+int savePNG(char * fileName,uint32_t width,uint32_t height,void * ptr){
 	//saves a 24bit png with rgb byte order
 	png_byte * dat=ptr;//convert to uint8_t
 	FILE * fp=fopen(fileName,"wb");
@@ -83,8 +82,7 @@ int savePNG(char * fileName,uint32_t width,uint32_t height,void * ptr)
 	fclose(fp);//done with file
 	return 0;//will return 0 on success non-zero in error
 }
-void yuv2rgb(uint8_t * yuvDat,uint8_t * out)
-{
+void yuv2rgb(uint8_t * yuvDat,uint8_t * out){
 	uint32_t xy;
 	for (xy=0;xy<(img_w/2)*img_h;++xy){
 		*out++=YUV2R(yuvDat[0],yuvDat[1],yuvDat[3]);
@@ -117,7 +115,6 @@ void deBayerBL(uint8_t * in,uint8_t * out){
 		for (x=0;x<img_w;x+=2){
 			/*	B Gb
 				Gr R*/
-			
 			if(y!=0){
 				if(x!=0)
 					out[x*3]=(in[y+x+1+img_w]+in[y+x+1-img_w]+in[y+x-1+img_w]+in[y+x-1-img_w])/4;//red
@@ -129,32 +126,35 @@ void deBayerBL(uint8_t * in,uint8_t * out){
 				else
 					out[x*3]=in[y+x+1+img_w];//red
 			}
-			if(x!=0)//edges need special handling
-				out[(x*3)+1]=(in[y+x-1]+in[y+x+1])/2;//green
-			else
-				out[(x*3)+1]=in[y+x+1];//green
+			if(y!=0){
+				if(x!=0)
+					out[(x*3)+1]=(in[x+y-img_w]+in[x+y-1]+in[x+y+1]+in[x+y+img_w])/4;
+				else
+					out[(x*3)+1]=(in[x+y-img_w]+in[x+y+img_w]+in[x+y+1])/3;
+			}else{
+				if(x!=0)
+					out[(x*3)+1]=(in[y+x-1]+in[y+x+1]+in[y+x+img_w])/3;
+				else
+					out[(x*3)+1]=(in[y+x+1]+in[y+x+img_w])/2;//green
+			}
 			out[(x*3)+2]=in[y+x];//blue
-			uint8_t r,b;
 			if(y!=0)
-				r=(in[y+x+1+img_w]+in[y+x+1-img_w])/2;//red
+				out[(x*3)+3]=(in[y+x+1+img_w]+in[y+x+1-img_w])/2;//red
 			else
-				r=in[y+x+1+img_w];
-			out[(x*3)+3]=r;
+				out[(x*3)+3]=in[y+x+1+img_w];
 			out[(x*3)+4]=in[y+x+1];//green
-			b=(in[y+x]+in[y+x+img_w_2])/2;
-			out[(x*3)+5]=b;//blue
+			out[(x*3)+5]=(in[x+y]+in[x+y+2])/2;//blue
 			
-			out[((x+img_w)*3)]=r;
-			out[((x+img_w)*3)+1]=in[y+x+img_w];
-			out[((x+img_w)*3)+2]=b;
+			if(x!=0)
+				out[((x+img_w)*3)]=(in[x+y+img_w+1]+in[x+y+img_w-1])/2;//red
+			else
+				out[((x+img_w)*3)]=in[x+y+img_w+1];//red
+			out[((x+img_w)*3)+1]=in[y+x+img_w];//green
+			out[((x+img_w)*3)+2]=(in[x+y]+in[x+y+img_w_2])/2;//get blue
 			
 			out[((x+img_w)*3)+3]=in[y+x+1+img_w];//red
-			out[((x+img_w)*3)+4]=in[y+x+img_w];//green
-			if(y!=0){//blue
-				out[((x+img_w)*3)+5]=(in[y+x+2-img_w_2]+in[y+x-img_w_2]+in[y+x+2+img_w_2]+in[y+x+img_w_2])/4;
-			}else{
-				out[((x+img_w)*3)+5]=(in[y+x+2+img_w_2]+in[y+x+img_w_2])/2;
-			}
+			out[((x+img_w)*3)+4]=(in[x+y+1]+in[x+y+1+img_w_2]+in[x+y+img_w]+in[x+y+img_w+2])/4;//green
+			out[((x+img_w)*3)+5]=(in[x+y]+in[x+y+2]+in[x+y+img_w_2]+in[x+y+2+img_w_2])/4;
 		}
 		out+=img_w*6;
 		//in+=img_w_2;
