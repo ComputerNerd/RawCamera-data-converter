@@ -12,7 +12,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-//to compile type gcc -Wall -Wextra -lm -lpng -O2 -s -o yuv main.c
+//to compile just run make
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,6 +21,7 @@
 #include <zlib.h>
 uint32_t img_w=640;
 uint32_t img_w_2=1280;
+uint32_t img_w_3=1920;
 uint32_t img_h=480;
 uint32_t img_wo=640;
 uint32_t img_ho=480;
@@ -35,8 +36,7 @@ uint32_t img_ho=480;
 char * buf;
 const uint8_t sqrt_tab[]={0,16,23,28,32,36,39,42,45,48,50,53,55,58,60,62,64,66,68,70,71,73,75,77,78,80,81,83,84,86,87,89,90,92,93,94,96,97,98,100,101,102,103,105,106,107,108,109,111,112,113,114,115,116,117,118,119,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,135,136,137,138,139,140,141,142,143,144,145,145,146,147,148,149,150,151,151,152,153,154,155,156,156,157,158,159,160,160,161,162,163,164,164,165,166,167,167,168,169,170,170,171,172,173,173,174,175,176,176,177,178,179,179,180,181,181,182,183,183,184,185,186,186,187,188,188,189,190,190,191,192,192,193,194,194,195,196,196,197,198,198,199,199,200,201,201,202,203,203,204,204,205,206,206,207,208,208,209,209,210,211,211,212,212,213,214,214,215,215,216,217,217,218,218,219,220,220,221,221,222,222,223,224,224,225,225,226,226,227,228,228,229,229,230,230,231,231,232,233,233,234,234,235,235,236,236,237,237,238,238,239,240,240,241,241,242,242,243,243,244,244,245,245,246,246,247,247,248,248,249,249,250,250,251,251,252,252,253,253,254,254,255};
 const uint8_t sine_tab[]={0, 2, 3, 5, 6, 8, 9,11,12,14,15,17,18,20,21,23,24,26,27,29,30,32,33,35,36,38,39,41,42,44,45,47,48,50,51,53,54,56,57, 59, 60, 61, 63, 64, 66, 67, 69, 70, 72, 73, 75, 76, 77, 79, 80, 82, 83, 85, 86, 88, 89, 90, 92, 93, 95, 96, 97, 99,100,102,103,104,106,107,108,110,111,113,114,115,117,118,119,121,122,123,125,126,127,129,130,131,132,134,135,136,138,139,140,141,143,144,145,146,148,149,150,151,153,154,155,156,157,159,160,161,162,163,164,166,167,168,169,170,171,172,173,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,207,208,209,210,211,212,213,213,214,215,216,217,217,218,219,220,221,221,222,223,224,224,225,226,226,227,228,228,229,230,230,231,232,232,233,234,234,235,235,236,236,237,238,238,239,239,240,240,241,241,242,242,243,243,244,244,244,245,245,246,246,247,247,247,248,248,248,249,249,249,250,250,250,251,251,251,251,252,252,252,252,253,253,253,253,253,253,254,254,254,254,254,254,254,254,255};
-void showHelp()
-{
+void showHelp(){
 	puts("Yuv422/raw image data to png");
 	puts("-f specify filename");
 	puts("-n x replace x with the image number you want to convert");
@@ -96,20 +96,162 @@ void yuv2rgb(uint8_t * yuvDat,uint8_t * out){
 		yuvDat+=4;
 	}
 }
+
+void MalvarDemosaic(float *Output, const float *Input, int Width, int Height, 
+    int RedX, int RedY)//I do not take credit for this function
+{
+    const int BlueX = 1 - RedX;
+    const int BlueY = 1 - RedY;
+    float *OutputRed = Output;
+    float *OutputGreen = Output + Width*Height;
+    float *OutputBlue = Output + 2*Width*Height;
+    /* Neigh holds a copy of the 5x5 neighborhood around the current point */
+    float Neigh[5][5];
+    /* NeighPresence is used for boundary handling.  It is set to 0 if the 
+       neighbor is beyond the boundaries of the image and 1 otherwise. */
+    int NeighPresence[5][5];
+    int i, j, x, y, nx, ny;
+    
+    
+    for(y = 0, i = 0; y < Height; y++)
+    {
+        for(x = 0; x < Width; x++, i++)
+        {
+            /* 5x5 neighborhood around the point (x,y) is copied into Neigh */
+            for(ny = -2, j = x + Width*(y - 2); ny <= 2; ny++, j += Width)
+            {
+                for(nx = -2; nx <= 2; nx++)
+                {
+                    if(0 <= x + nx && x + nx < Width 
+                        && 0 <= y + ny && y + ny < Height)
+                    {
+                        Neigh[2 + nx][2 + ny] = Input[j + nx];
+                        NeighPresence[2 + nx][2 + ny] = 1;
+                    }
+                    else
+                    {
+                        Neigh[2 + nx][2 + ny] = 0;
+                        NeighPresence[2 + nx][2 + ny] = 0;
+                    }
+                }
+            }
+
+            if((x & 1) == RedX && (y & 1) == RedY)
+            {
+                /* Center pixel is red */
+                OutputRed[i] = Input[i];
+                OutputGreen[i] = (2*(Neigh[2][1] + Neigh[1][2]
+                    + Neigh[3][2] + Neigh[2][3])
+                    + (NeighPresence[0][2] + NeighPresence[4][2]
+                    + NeighPresence[2][0] + NeighPresence[2][4])*Neigh[2][2] 
+                    - Neigh[0][2] - Neigh[4][2]
+                    - Neigh[2][0] - Neigh[2][4])
+                    / (2*(NeighPresence[2][1] + NeighPresence[1][2]
+                    + NeighPresence[3][2] + NeighPresence[2][3]));
+                OutputBlue[i] = (4*(Neigh[1][1] + Neigh[3][1]
+                    + Neigh[1][3] + Neigh[3][3]) +
+                    3*((NeighPresence[0][2] + NeighPresence[4][2]
+                    + NeighPresence[2][0] + NeighPresence[2][4])*Neigh[2][2] 
+                    - Neigh[0][2] - Neigh[4][2]
+                    - Neigh[2][0] - Neigh[2][4])) 
+                    / (4*(NeighPresence[1][1] + NeighPresence[3][1]
+                    + NeighPresence[1][3] + NeighPresence[3][3]));
+            }
+            else if((x & 1) == BlueX && (y & 1) == BlueY)
+            {
+                /* Center pixel is blue */
+                OutputBlue[i] = Input[i];
+                OutputGreen[i] = (2*(Neigh[2][1] + Neigh[1][2]
+                    + Neigh[3][2] + Neigh[2][3])
+                    + (NeighPresence[0][2] + NeighPresence[4][2]
+                    + NeighPresence[2][0] + NeighPresence[2][4])*Neigh[2][2] 
+                    - Neigh[0][2] - Neigh[4][2]
+                    - Neigh[2][0] - Neigh[2][4])
+                    / (2*(NeighPresence[2][1] + NeighPresence[1][2]
+                    + NeighPresence[3][2] + NeighPresence[2][3]));
+                OutputRed[i] = (4*(Neigh[1][1] + Neigh[3][1]
+                    + Neigh[1][3] + Neigh[3][3]) +
+                    3*((NeighPresence[0][2] + NeighPresence[4][2]
+                    + NeighPresence[2][0] + NeighPresence[2][4])*Neigh[2][2] 
+                    - Neigh[0][2] - Neigh[4][2]
+                    - Neigh[2][0] - Neigh[2][4])) 
+                    / (4*(NeighPresence[1][1] + NeighPresence[3][1]
+                    + NeighPresence[1][3] + NeighPresence[3][3]));
+            }
+            else
+            {
+                /* Center pixel is green */
+                OutputGreen[i] = Input[i];
+                
+                if((y & 1) == RedY)
+                {
+                    /* Left and right neighbors are red */
+                    OutputRed[i] = (8*(Neigh[1][2] + Neigh[3][2])
+                        + (2*(NeighPresence[1][1] + NeighPresence[3][1]
+                        + NeighPresence[0][2] + NeighPresence[4][2]
+                        + NeighPresence[1][3] + NeighPresence[3][3])
+                        - NeighPresence[2][0] - NeighPresence[2][4])*Neigh[2][2]
+                        - 2*(Neigh[1][1] + Neigh[3][1]
+                        + Neigh[0][2] + Neigh[4][2]
+                        + Neigh[1][3] + Neigh[3][3])
+                        + Neigh[2][0] + Neigh[2][4]) 
+                        / (8*(NeighPresence[1][2] + NeighPresence[3][2]));
+                    OutputBlue[i] = (8*(Neigh[2][1] + Neigh[2][3])
+                        + (2*(NeighPresence[1][1] + NeighPresence[3][1]
+                        + NeighPresence[2][0] + NeighPresence[2][4]
+                        + NeighPresence[1][3] + NeighPresence[3][3])
+                        - NeighPresence[0][2] - NeighPresence[4][2])*Neigh[2][2]
+                        - 2*(Neigh[1][1] + Neigh[3][1]
+                        + Neigh[2][0] + Neigh[2][4]
+                        + Neigh[1][3] + Neigh[3][3])
+                        + Neigh[0][2] + Neigh[4][2]) 
+                        / (8*(NeighPresence[2][1] + NeighPresence[2][3]));
+                }
+                else
+                {
+                    /* Left and right neighbors are blue */
+                    OutputRed[i] = (8*(Neigh[2][1] + Neigh[2][3])
+                        + (2*(NeighPresence[1][1] + NeighPresence[3][1]
+                        + NeighPresence[2][0] + NeighPresence[2][4]
+                        + NeighPresence[1][3] + NeighPresence[3][3])
+                        - NeighPresence[0][2] - NeighPresence[4][2])*Neigh[2][2]
+                        - 2*(Neigh[1][1] + Neigh[3][1]
+                        + Neigh[2][0] + Neigh[2][4]
+                        + Neigh[1][3] + Neigh[3][3])
+                        + Neigh[0][2] + Neigh[4][2]) 
+                        / (8*(NeighPresence[2][1] + NeighPresence[2][3]));
+                    OutputBlue[i] = (8*(Neigh[1][2] + Neigh[3][2])
+                        + (2*(NeighPresence[1][1] + NeighPresence[3][1]
+                        + NeighPresence[0][2] + NeighPresence[4][2]
+                        + NeighPresence[1][3] + NeighPresence[3][3])
+                        - NeighPresence[2][0] - NeighPresence[2][4])*Neigh[2][2]
+                        - 2*(Neigh[1][1] + Neigh[3][1]
+                        + Neigh[0][2] + Neigh[4][2]
+                        + Neigh[1][3] + Neigh[3][3])
+                        + Neigh[2][0] + Neigh[2][4]) 
+                        / (8*(NeighPresence[1][2] + NeighPresence[3][2]));
+                }
+            }
+        }
+    }
+}
+
 void deBayerHQl(uint8_t *in,uint8_t * out){
 	//from https://research.microsoft.com/en-us/um/people/lhe/papers/icassp04.demosaicing.pdf
-	uint32_t x,y;
-	for (y=0;y<img_h*img_w;y+=2*img_w){
-		for (x=0;x<img_w;x+=2){
-			/*	B Gb
-				Gr R*/
-			out[(x*3)+2]=in[x+y];
-			out[(x*3)+4]=in[x+y+1];
-			out[((x+img_w)*3)+1]=in[x+y+img_w];
-			out[((x+img_w)*3)+3]=in[x+y+img_w+1];
-		}
-		out+=img_w*6;
+	float * inf=malloc(img_w*img_h*sizeof(float));
+	float * outf=malloc(img_w_3*img_h*sizeof(float));
+	uint32_t z;
+	for(z=0;z<img_w*img_h;++z)
+		inf[z]=in[z];
+	MalvarDemosaic(outf,inf,img_w,img_h,1,1);
+	for(z=0;z<img_w_3*img_h;z+=3){
+		out[z]=CLIP(outf[z/3]);
+		out[z+1]=CLIP(outf[(z/3)+(img_w*img_h)]);
+		out[z+2]=CLIP(outf[(z/3)+(img_w_2*img_h)]);
+		
 	}
+	free(inf);
+	free(outf);
 }
 void deBayerBL(uint8_t * in,uint8_t * out){
 	uint32_t x,y;
@@ -223,10 +365,7 @@ void deBayerN(uint8_t * in,uint8_t * out){
 uint8_t readImg(uint32_t numf,uint16_t offset,uint8_t * dat,uint8_t alg,char * fileName){
 	FILE * myfile;
 	if(fileName==0){
-		if(alg!=0)
-			sprintf(buf,"F%d.RAW",numf);
-		else
-			sprintf(buf,"F%d.YUV",numf);
+		sprintf(buf,"%d.RAW",numf);
 		myfile = fopen(buf,"rb");
 	}else
 		myfile = fopen(fileName,"rb");
@@ -361,6 +500,7 @@ int main(int argc,char ** argv){
 				arg++;
 				img_wo=img_w=atoi(argv[arg]);
 				img_w_2=img_w+img_w;
+				img_w_3=img_w*3;
 				continue;
 			}
 			if (strcmp(argv[arg],"-s") == 0){
@@ -465,5 +605,6 @@ int main(int argc,char ** argv){
 quit:
 	free(Dat);
 	free(outImg);
+	free(buf);
 	return 0;
 }
