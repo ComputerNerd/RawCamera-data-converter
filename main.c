@@ -465,7 +465,7 @@ int main(int argc,char ** argv){
 	uint8_t useNum=0;
 	uint32_t useImg=0;
 	uint16_t offset=0;
-	uint8_t debayer=3;
+	uint8_t debayer=5;
 	uint16_t numImg=1;
 	uint8_t sqrtUse=0;
 	uint8_t sineUse=0;
