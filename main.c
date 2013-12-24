@@ -43,7 +43,7 @@ void showHelp(){
 	puts("-h or --help shows this help file");
 	puts("-o x replace x with a real positive integer that is less than the filesize of the image in which you are opening\nThis skips x number of bytes");
 	puts("-a x replace x with the amount of frames that you wish to averge don't use this if you don't want to average frames");
-	puts("-c picks which algorthim you would like to use you can specify either 'y' or 'd' or 'dq' or 'dn' or 'dl' but without the quoes");
+	puts("-c picks which algorthim you would like to use you can specify either 'y' 'yalt' or 'd' or 'dq' or 'dn' or 'dl' but without the quoes");
 	puts("y means yuv422 conversion\nd means to debayer by default debayering conversion is used\ndq means to take debayered data and output quater resolution but it does not to any interopulation instead it takes the 4 one color pixels and makes one\ndn means use neighest neighboor debayer instead of bilinear\nr means rgb565");
 	puts("dl is a higher quality algorithm based on https://research.microsoft.com/en-us/um/people/lhe/papers/icassp04.demosaicing.pdf");
 	puts("-w specifies width (defaults to 640)");
@@ -96,6 +96,19 @@ void yuv2rgb(uint8_t * yuvDat,uint8_t * out){
 		yuvDat+=4;
 	}
 }
+void yuv2rgbalt(uint8_t * yuvDat,uint8_t * out){
+	uint32_t xy;
+	for (xy=0;xy<(img_w/2)*img_h;++xy){
+		*out++=YUV2R(yuvDat[2],yuvDat[1],yuvDat[3]);
+		*out++=YUV2G(yuvDat[2],yuvDat[1],yuvDat[3]);
+		*out++=YUV2B(yuvDat[2],yuvDat[1],yuvDat[3]);
+		*out++=YUV2R(yuvDat[0],yuvDat[1],yuvDat[3]);
+		*out++=YUV2G(yuvDat[0],yuvDat[1],yuvDat[3]);
+		*out++=YUV2B(yuvDat[0],yuvDat[1],yuvDat[3]);
+		yuvDat+=4;
+	}
+}
+
 
 void MalvarDemosaic(float *Output, const float *Input, int Width, int Height, 
     int RedX, int RedY)//I do not take credit for this function
@@ -379,7 +392,7 @@ uint8_t readImg(uint32_t numf,uint16_t offset,uint8_t * dat,uint8_t alg,char * f
 	if (offset!=0)
 		fseek(myfile,offset,SEEK_SET);
 	int error=0;
-	if (alg!=0&&alg!=4)
+	if (alg!=0&&alg!=4&&alg!=6)
 		error=fread(dat,1,(img_w*img_h)-offset,myfile);
 	else
 		error=fread(dat,1,(img_w_2*img_h)-offset,myfile);
@@ -405,6 +418,9 @@ uint8_t processImg(uint8_t * in,uint8_t * out,uint32_t numf,uint8_t alg,uint16_t
 	if (readImg(numf,offset,in,alg,fileName))
 		return 1;
 	switch (alg){
+	case 6:
+		yuv2rgbalt(in,out);
+	break;
 	case 5:
 		deBayerHQl(in,out);
 	break;
@@ -479,6 +495,8 @@ int main(int argc,char ** argv){
 				arg++;
 				if(strcmp(argv[arg],"y")==0)
 					debayer=0;
+				else if(strcmp(argv[arg],"yalt")==0)
+					debayer=6;
 				else if(strcmp(argv[arg],"d")==0)
 					debayer=3;
 				else if(strcmp(argv[arg],"dq")==0)
@@ -552,7 +570,7 @@ int main(int argc,char ** argv){
 		}
 	}
 	uint8_t * Dat;//in case some of the file was not saved we use calloc instead of malloc to garentte that the unsaved pixels are set to 0
-	if (debayer!=0&&debayer!=4)
+	if (debayer!=0&&debayer!=4&&debayer!=6)
 		Dat = calloc(img_w*img_h,1);
 	else
 		Dat = calloc(img_w*img_h,2);
