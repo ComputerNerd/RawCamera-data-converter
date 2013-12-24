@@ -99,12 +99,12 @@ void yuv2rgb(uint8_t * yuvDat,uint8_t * out){
 void yuv2rgbalt(uint8_t * yuvDat,uint8_t * out){
 	uint32_t xy;
 	for (xy=0;xy<(img_w/2)*img_h;++xy){
-		*out++=YUV2R(yuvDat[2],yuvDat[1],yuvDat[3]);
-		*out++=YUV2G(yuvDat[2],yuvDat[1],yuvDat[3]);
-		*out++=YUV2B(yuvDat[2],yuvDat[1],yuvDat[3]);
-		*out++=YUV2R(yuvDat[0],yuvDat[1],yuvDat[3]);
-		*out++=YUV2G(yuvDat[0],yuvDat[1],yuvDat[3]);
-		*out++=YUV2B(yuvDat[0],yuvDat[1],yuvDat[3]);
+		*out++=YUV2R(yuvDat[0],yuvDat[3],yuvDat[1]);
+		*out++=YUV2G(yuvDat[0],yuvDat[3],yuvDat[1]);
+		*out++=YUV2B(yuvDat[0],yuvDat[3],yuvDat[1]);
+		*out++=YUV2R(yuvDat[2],yuvDat[3],yuvDat[1]);
+		*out++=YUV2G(yuvDat[2],yuvDat[3],yuvDat[1]);
+		*out++=YUV2B(yuvDat[2],yuvDat[3],yuvDat[1]);
 		yuvDat+=4;
 	}
 }
