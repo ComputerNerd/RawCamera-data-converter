@@ -45,7 +45,7 @@ void showHelp(){
 	puts("-a x replace x with the amount of frames that you wish to averge don't use this if you don't want to average frames");
 	puts("-c picks which algorthim you would like to use you can specify either 'y' 'yalt' or 'd' or 'dq' or 'dn' or 'dl' but without the quoes");
 	puts("y means yuv422 conversion\nd means to debayer by default debayering conversion is used\ndq means to take debayered data and output quater resolution but it does not to any interopulation instead it takes the 4 one color pixels and makes one\ndn means use neighest neighboor debayer instead of bilinear\nr means rgb565");
-	puts("dl is a higher quality algorithm based on https://research.microsoft.com/en-us/um/people/lhe/papers/icassp04.demosaicing.pdf");
+	puts("dl (default) is a higher quality algorithm based on https://research.microsoft.com/en-us/um/people/lhe/papers/icassp04.demosaicing.pdf");
 	puts("-w specifies width (defaults to 640)");
 	puts("-H specifies height (defaults to 480)");
 	puts("-sq squrate root curves the image (makes it brighter without clipping highlights using this forumla sqrt(255.0)*sqrt(x)");
