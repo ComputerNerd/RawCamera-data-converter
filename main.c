@@ -36,21 +36,54 @@ uint32_t img_ho=480;
 char * buf;
 const uint8_t sqrt_tab[]={0,16,23,28,32,36,39,42,45,48,50,53,55,58,60,62,64,66,68,70,71,73,75,77,78,80,81,83,84,86,87,89,90,92,93,94,96,97,98,100,101,102,103,105,106,107,108,109,111,112,113,114,115,116,117,118,119,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,135,136,137,138,139,140,141,142,143,144,145,145,146,147,148,149,150,151,151,152,153,154,155,156,156,157,158,159,160,160,161,162,163,164,164,165,166,167,167,168,169,170,170,171,172,173,173,174,175,176,176,177,178,179,179,180,181,181,182,183,183,184,185,186,186,187,188,188,189,190,190,191,192,192,193,194,194,195,196,196,197,198,198,199,199,200,201,201,202,203,203,204,204,205,206,206,207,208,208,209,209,210,211,211,212,212,213,214,214,215,215,216,217,217,218,218,219,220,220,221,221,222,222,223,224,224,225,225,226,226,227,228,228,229,229,230,230,231,231,232,233,233,234,234,235,235,236,236,237,237,238,238,239,240,240,241,241,242,242,243,243,244,244,245,245,246,246,247,247,248,248,249,249,250,250,251,251,252,252,253,253,254,254,255};
 const uint8_t sine_tab[]={0, 2, 3, 5, 6, 8, 9,11,12,14,15,17,18,20,21,23,24,26,27,29,30,32,33,35,36,38,39,41,42,44,45,47,48,50,51,53,54,56,57, 59, 60, 61, 63, 64, 66, 67, 69, 70, 72, 73, 75, 76, 77, 79, 80, 82, 83, 85, 86, 88, 89, 90, 92, 93, 95, 96, 97, 99,100,102,103,104,106,107,108,110,111,113,114,115,117,118,119,121,122,123,125,126,127,129,130,131,132,134,135,136,138,139,140,141,143,144,145,146,148,149,150,151,153,154,155,156,157,159,160,161,162,163,164,166,167,168,169,170,171,172,173,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,207,208,209,210,211,212,213,213,214,215,216,217,217,218,219,220,221,221,222,223,224,224,225,226,226,227,228,228,229,230,230,231,232,232,233,234,234,235,235,236,236,237,238,238,239,239,240,240,241,241,242,242,243,243,244,244,244,245,245,246,246,247,247,247,248,248,248,249,249,249,250,250,250,251,251,251,251,252,252,252,252,253,253,253,253,253,253,254,254,254,254,254,254,254,254,255};
+
+//Argument defines
+
+//2 bytes per pixel modes
+
+#define ALG_YUV_0 0
+#define ALG_YUV_1 1
+#define ALG_RGB565 2
+
+#define BPP2AMT 2 //How many are 2 bytes per pixel
+
+//1 byte per pixel modes
+
+#define ALG_DEBAYER_HQ 3
+#define ALG_DEBAYER_BL 4
+#define ALG_DEBAYER_Q 5
+#define ALG_DEBAYER_N 6
+
+static inline int bytesPerPixel(uint8_t alg){
+	return (alg<=BPP2AMT)?2:1;
+}
+
 void showHelp(){
-	puts("Yuv422/raw image data to png");
-	puts("-f specify filename");
-	puts("-n x replace x with the image number you want to convert");
-	puts("-h or --help shows this help file");
-	puts("-o x replace x with a real positive integer that is less than the filesize of the image in which you are opening\nThis skips x number of bytes");
-	puts("-a x replace x with the amount of frames that you wish to averge don't use this if you don't want to average frames");
-	puts("-c picks which algorthim you would like to use you can specify either 'y' 'yalt' or 'd' or 'dq' or 'dn' or 'dl' but without the quoes");
-	puts("y means yuv422 conversion\nd means to debayer by default debayering conversion is used\ndq means to take debayered data and output quater resolution but it does not to any interopulation instead it takes the 4 one color pixels and makes one\ndn means use neighest neighboor debayer instead of bilinear\nr means rgb565");
-	puts("dl (default) is a higher quality algorithm based on https://research.microsoft.com/en-us/um/people/lhe/papers/icassp04.demosaicing.pdf");
-	puts("-w specifies width (defaults to 640)");
-	puts("-H specifies height (defaults to 480)");
-	puts("-sq squrate root curves the image (makes it brighter without clipping highlights using this forumla sqrt(255.0)*sqrt(x)");
-	puts("-s sine curves the image using this formula (int)floor((sin((double)x/(255.0/PI*2.075))*255.0)+0.5)");
-	puts("-sq and -s can be combined");
+	puts("Yuv422/raw image data to png\n"
+	"-f specify filename\n"
+	"-n x replace x with the image number you want to convert\n"
+	"-h or --help shows the message that you are viewing right now\n"
+	"-o x replace x with a real positive integer that is less than the filesize of the image in which you are opening\n"
+	"This skips x number of bytes\n"
+	"-a x replace x with the amount of frames that you wish to averge\n"
+	"Don't use this if you don't want to average frames\n"
+	"-c picks which algorthim you would like to use.\n"
+	"You can specify either 'y', 'ya', 'd', 'dq', 'dn', 'dl' but without the quotes and commaas\n"
+	"y means yuv422 conversion\n"
+	"r means rgb565\n"
+	"dq means to take debayered data and output quater resolution but it does not to any interopulation instead it takes the 4 one color pixels and makes one\n"
+	"dn means use neighest neighboor demosaicing instead of bilinear\n"
+	"d (default) is a higher quality demosaicing algorithm based on\n"
+	"https://research.microsoft.com/en-us/um/people/lhe/papers/icassp04.demosaicing.pdf\n"
+	"dl is simple bilinear demoasicing\n"
+	"-w specifies width (defaults to 640)\n"
+	"-H specifies height (defaults to 480)\n"
+	"-sq squrate root curves the image\n"
+	"(This makes the image brighter without too much clipping)\n"
+	"using this forumla sqrt(255.0)*sqrt(x)"
+	"-s sine curves the image using this formula\n"
+	"(int)floor((sin((double)x/(255.0/PI*2.075))*255.0)+0.5)\n"
+	"-sq and -s can be combined");
 }
 int savePNG(char * fileName,uint32_t width,uint32_t height,void * ptr){
 	//saves a 24bit png with rgb byte order
@@ -84,31 +117,29 @@ int savePNG(char * fileName,uint32_t width,uint32_t height,void * ptr){
 	fclose(fp);//done with file
 	return 0;//will return 0 on success non-zero in error
 }
-void yuv2rgb(uint8_t * yuvDat,uint8_t * out){
+void yuv2rgb(uint8_t * yuvDat,uint8_t * out,uint8_t alg){
 	uint32_t xy;
+	int y1,y2;
+	switch(alg){
+		case ALG_YUV_0:
+			y1=0;
+			y2=2;
+		break;
+		case ALG_YUV_1:
+			y2=0;
+			y1=2;
+		break;
+	}
 	for (xy=0;xy<(img_w/2)*img_h;++xy){
-		*out++=YUV2R(yuvDat[0],yuvDat[1],yuvDat[3]);
-		*out++=YUV2G(yuvDat[0],yuvDat[1],yuvDat[3]);
-		*out++=YUV2B(yuvDat[0],yuvDat[1],yuvDat[3]);
-		*out++=YUV2R(yuvDat[2],yuvDat[1],yuvDat[3]);
-		*out++=YUV2G(yuvDat[2],yuvDat[1],yuvDat[3]);
-		*out++=YUV2B(yuvDat[2],yuvDat[1],yuvDat[3]);
+		*out++=YUV2R(yuvDat[y1],yuvDat[1],yuvDat[3]);
+		*out++=YUV2G(yuvDat[y1],yuvDat[1],yuvDat[3]);
+		*out++=YUV2B(yuvDat[y1],yuvDat[1],yuvDat[3]);
+		*out++=YUV2R(yuvDat[y2],yuvDat[1],yuvDat[3]);
+		*out++=YUV2G(yuvDat[y2],yuvDat[1],yuvDat[3]);
+		*out++=YUV2B(yuvDat[y2],yuvDat[1],yuvDat[3]);
 		yuvDat+=4;
 	}
 }
-void yuv2rgbalt(uint8_t * yuvDat,uint8_t * out){
-	uint32_t xy;
-	for (xy=0;xy<(img_w/2)*img_h;++xy){
-		*out++=YUV2R(yuvDat[0],yuvDat[3],yuvDat[1]);
-		*out++=YUV2G(yuvDat[0],yuvDat[3],yuvDat[1]);
-		*out++=YUV2B(yuvDat[0],yuvDat[3],yuvDat[1]);
-		*out++=YUV2R(yuvDat[2],yuvDat[3],yuvDat[1]);
-		*out++=YUV2G(yuvDat[2],yuvDat[3],yuvDat[1]);
-		*out++=YUV2B(yuvDat[2],yuvDat[3],yuvDat[1]);
-		yuvDat+=4;
-	}
-}
-
 
 void MalvarDemosaic(float *Output, const float *Input, int Width, int Height, 
     int RedX, int RedY)//I do not take credit for this function
@@ -332,7 +363,6 @@ void deBayerSSDD(uint8_t * in,uint8_t * out)
 			out[x*3]=in[x];
 		}
 	}
-	
 }
 void deBayerQ(uint8_t * in,uint8_t * out)
 {//generates quater resolution but pixel has real RGB value at each location
@@ -392,10 +422,7 @@ uint8_t readImg(uint32_t numf,uint16_t offset,uint8_t * dat,uint8_t alg,char * f
 	if (offset!=0)
 		fseek(myfile,offset,SEEK_SET);
 	int error=0;
-	if (alg!=0&&alg!=4&&alg!=6)
-		error=fread(dat,1,(img_w*img_h)-offset,myfile);
-	else
-		error=fread(dat,1,(img_w_2*img_h)-offset,myfile);
+	error=fread(dat,1,(img_w*img_h*bytesPerPixel(alg))-offset,myfile);
 	fclose(myfile);
 	if(error==0){
 		puts("Error read 0 bytes");
@@ -404,40 +431,37 @@ uint8_t readImg(uint32_t numf,uint16_t offset,uint8_t * dat,uint8_t alg,char * f
 	return 0;
 }
 void rgb565torgb888(uint8_t * in,uint8_t * out){
-	uint32_t xy;
-	for (xy=0;xy<img_w*img_h;++xy){
+	uint32_t xy=img_w*img_h;
+	uint16_t * ins=(uint16_t *)in;
+	while(xy--){
 		// R R R R R G G G   G G G B B B B B
-		*out++=*in&248;
-		*out++=((*in&7)<<5)|((in[1]&224)>>2);
-		++in;
-		*out++=*in<<3;
-		++in;
+		*out++=((*in++)>>3)*255/31;
+		*out++=(((*ins++)>>5)&63)*255/63;
+		*out++=((*in++)&31)*255/31;
 	}
 }
 uint8_t processImg(uint8_t * in,uint8_t * out,uint32_t numf,uint8_t alg,uint16_t offset,uint8_t sqrtUse,uint8_t sineUse,char * fileName){
 	if (readImg(numf,offset,in,alg,fileName))
 		return 1;
 	switch (alg){
-	case 6:
-		yuv2rgbalt(in,out);
+	case ALG_YUV_0:
+	case ALG_YUV_1:
+		yuv2rgb(in,out,alg);
 	break;
-	case 5:
+	case ALG_DEBAYER_HQ:
 		deBayerHQl(in,out);
 	break;
-	case 4:
+	case ALG_RGB565:
 		rgb565torgb888(in,out);
 	break;
-	case 3:
+	case ALG_DEBAYER_BL:
 		deBayerBL(in,out);
 	break;
-	case 2:
+	case ALG_DEBAYER_Q:
 		deBayerQ(in,out);//causes low resolution but it's like have a 3cmos sensor or foveon sensor
 	break;
-	case 1:
+	case ALG_DEBAYER_N:
 		deBayerN(in,out);//nearest neighboor low quality but fast
-	break;
-	case 0:
-		yuv2rgb(in,out);
 	break;
 	default:
 		puts("You must pick a valid algorithm to save the image as");
@@ -490,91 +514,109 @@ int main(int argc,char ** argv){
 	if (argc>1){
 		//handle arguments
 		int arg;
-		for (arg=0;arg<argc;arg++){
-			if (strcmp(argv[arg],"-c") == 0){
-				arg++;
-				if(strcmp(argv[arg],"y")==0)
-					debayer=0;
-				else if(strcmp(argv[arg],"yalt")==0)
-					debayer=6;
-				else if(strcmp(argv[arg],"d")==0)
-					debayer=3;
-				else if(strcmp(argv[arg],"dq")==0)
-					debayer=2;
-				else if(strcmp(argv[arg],"dn")==0)
-					debayer=1;
-				else if(strcmp(argv[arg],"r")==0)
-					debayer=4;
-				else if(strcmp(argv[arg],"dl")==0)
-					debayer=5;
-				else{
-					puts("You did not specify a valid algorithm See usage (below)");
-					showHelp();
-					return 1;
+		for (arg=1;arg<argc;arg++){
+			if(argv[arg][0]=='-'){
+				switch(argv[arg][1]){
+					case '-':
+						//extented arguments
+						if((strcmp(argv[arg],"--help")==0)){
+							showHelp();
+							return 0;
+						}
+					break;
+					case 'H':
+						arg++;
+						img_ho=img_h=atoi(argv[arg]);
+					break;
+					case 'a':
+						arg++;
+						useNum=2;
+						numImg=atoi(argv[arg]);
+						if (numImg<1){
+							printf("For argument -a you must specify a number greater than 0 you entered %d\n",numImg);
+							return 1;
+						}
+					break;
+					case 'c':
+						++arg;
+						switch(argv[arg][0]){
+							case 'd':
+								switch(argv[arg][1]){
+									case 0:
+										debayer=ALG_DEBAYER_HQ;
+									break;
+									case 'l':
+										debayer=ALG_DEBAYER_BL;
+									break;
+									case 'n':
+										debayer=ALG_DEBAYER_N;
+									break;
+									case 'q':
+										debayer=ALG_DEBAYER_Q;
+									break;
+									default:
+										printf("%s is not a valid algorith type\n",argv[arg]);
+										showHelp();
+										return 1;
+								}
+							case 'r':
+								debayer=ALG_RGB565;
+							break;
+							case 'y':
+								switch(argv[arg][1]){
+									case 0:
+										debayer=ALG_YUV_0;
+									break;
+									case 'a':
+										debayer=ALG_YUV_1;
+									break;
+								}
+							break;
+						}
+					break;
+					case 'f':
+						++arg;
+						useNum=3;
+						fileName=argv[arg];
+						buf=realloc(buf,strlen(fileName)+64);
+					break;
+					case 'h':
+						showHelp();
+						return 0;
+					break;
+					case 'n':
+						arg++;
+						useImg=atoi(argv[arg]);
+						if (useNum != 2)
+							useNum=1;
+					break;
+					case 'o':
+						arg++;
+						offset=atoi(argv[arg]);
+					break;
+					case 's':
+						switch(argv[arg][2]){
+							case 0:
+								sineUse=1;
+							break;
+							case 'q':
+								sqrtUse=1;
+							break;
+						}
+					break;
+					case 'w':
+						arg++;
+						img_wo=img_w=atoi(argv[arg]);
+						img_w_2=img_w+img_w;
+						img_w_3=img_w*3;
+					break;
 				}
-				continue;
-			}
-			if (strcmp(argv[arg],"-w") == 0){
-				arg++;
-				img_wo=img_w=atoi(argv[arg]);
-				img_w_2=img_w+img_w;
-				img_w_3=img_w*3;
-				continue;
-			}
-			if (strcmp(argv[arg],"-s") == 0){
-				sineUse=1;
-				continue;
-			}
-			if (strcmp(argv[arg],"-sq") == 0){
-				sqrtUse=1;
-				continue;
-			}
-			if (strcmp(argv[arg],"-H") == 0){
-				arg++;
-				img_ho=img_h=atoi(argv[arg]);
-				continue;
-			}
-			if (strcmp(argv[arg],"-n") == 0){
-				arg++;
-				useImg=atoi(argv[arg]);
-				if (useNum != 2)
-					useNum=1;
-				continue;
-			}
-			if (strcmp(argv[arg],"-f") == 0){
-				++arg;
-				useNum=3;
-				fileName=argv[arg];
-				buf=realloc(buf,strlen(fileName)+64);
-				continue;
-			}
-			if (strcmp(argv[arg],"-o") == 0){
-				arg++;
-				offset=atoi(argv[arg]);
-				continue;
-			}
-			if (strcmp(argv[arg],"-a") == 0){
-				arg++;
-				useNum=2;
-				numImg=atoi(argv[arg]);
-				if (numImg <1){
-					printf("For argument -a you must specify a number greater than 0 you entered %d\n",numImg);
-					return 1;
-				}
-				continue;
-			}
-			if ((strcmp(argv[arg],"-h")==0) || (strcmp(argv[arg],"--help")==0)){
-				showHelp();
-				return 0;
 			}
 		}
 	}
 	uint8_t * Dat;//in case some of the file was not saved we use calloc instead of malloc to garentte that the unsaved pixels are set to 0
-	if (debayer!=0&&debayer!=4&&debayer!=6)
-		Dat = calloc(img_w*img_h,1);
-	else
-		Dat = calloc(img_w*img_h,2);
-	if(debayer==2){
+	Dat = calloc(img_w*img_h,bytesPerPixel(debayer));
+	if(debayer==ALG_DEBAYER_Q){
 		img_wo/=2;
 		img_ho/=2;
 	}
