@@ -1,0 +1,10 @@
+objects = main.o
+
+yuv: $(objects)
+	gcc -o convert -O2 -s -lm -lpng -Wall -Wextra -flto $(objects)
+%.o: %.c
+	gcc -O2 -s -lm -lpng -Wall -Wextra -flto -c $< -o $@
+$(objects) :
+.PHONY : clean
+clean :
+	rm convert $(objects)

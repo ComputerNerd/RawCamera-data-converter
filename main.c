@@ -58,9 +58,13 @@ static inline int bytesPerPixel(uint8_t alg){
 	return (alg<=BPP2AMT)?2:1;
 }
 
-void showHelp(){
-	puts("Yuv422/raw image data to png\n"
-	"-f specify filename\n"
+static void showHelp(){
+	puts("Raw data image converter\n"
+	"There are two ways to specify a file the first is to simply specify a file\n"
+	"Using the -f argument you can specify a file that you want to convert\n"
+	"Another option that you have is to have files that start with a number and end in .RAW\n"
+	"This program will cound from 0 and convert thoese images and keep going until fopen fails\n"
+	"You can also convert just one numbered image with the -n argument\n"
 	"-n x replace x with the image number you want to convert\n"
 	"-h or --help shows the message that you are viewing right now\n"
 	"-o x replace x with a real positive integer that is less than the filesize of the image in which you are opening\n"
@@ -501,6 +505,10 @@ void avgF(uint16_t numf,uint8_t * inout){
 		inout[xy]=temp[xy];
 	free(temp);
 }
+static void unReconizedSub(char o,char s){
+	printf("Unreconized suboption %c of %c\n",s,o);
+	showHelp();
+}
 int main(int argc,char ** argv){
 	uint8_t useNum=0;
 	uint32_t useImg=0;
@@ -555,8 +563,7 @@ int main(int argc,char ** argv){
 										debayer=ALG_DEBAYER_Q;
 									break;
 									default:
-										printf("%s is not a valid algorith type\n",argv[arg]);
-										showHelp();
+										unReconizedSub('d',argv[arg][1]);
 										return 1;
 								}
 							case 'r':
@@ -570,6 +577,9 @@ int main(int argc,char ** argv){
 									case 'a':
 										debayer=ALG_YUV_1;
 									break;
+									default:
+										unReconizedSub('y',argv[arg][1]);
+										return 1;
 								}
 							break;
 						}
@@ -602,6 +612,9 @@ int main(int argc,char ** argv){
 							case 'q':
 								sqrtUse=1;
 							break;
+							default:
+								unReconizedSub('s',argv[arg][2]);
+								return 1;
 						}
 					break;
 					case 'w':
