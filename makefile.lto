@@ -1,6 +1,6 @@
-objects = main.o
+objects = main.o tables.o savePng.o yuv.o
 
-yuv: $(objects)
+convert: $(objects)
 	gcc -o convert -O2 -s -lm -lpng -Wall -Wextra -flto $(objects)
 %.o: %.c
 	gcc -O2 -s -lm -lpng -Wall -Wextra -flto -c $< -o $@

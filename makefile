@@ -1,9 +1,9 @@
-objects = main.o
+objects = main.o tables.o savePng.o yuv.o
 
 yuv: $(objects)
 	gcc -o convert -O2 -s -lm -lpng -Wall -Wextra $(objects)
 %.o: %.c
-	gcc -o convert -O2 -s -lm -lpng -Wall -Wextra -c $< -o $@
+	gcc -O2 -s -lm -lpng -Wall -Wextra -c $< -o $@
 $(objects) :
 .PHONY : clean
 clean :
