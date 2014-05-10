@@ -20,6 +20,9 @@
 #include "defines.h"
 #include "tables.h"
 #include "savePng.h"
+#include "bilinear.h"
+#include "pixels.h"
+#include "adaptive.h"
 uint32_t img_w=640;
 uint32_t img_w_2=1280;
 uint32_t img_w_3=1920;
@@ -55,6 +58,7 @@ static void showHelp(){
 	"d (default) is a higher quality demosaicing algorithm based on\n"
 	"https://research.microsoft.com/en-us/um/people/lhe/papers/icassp04.demosaicing.pdf\n"
 	"dl is simple bilinear demoasicing\n"
+	"da is adapative demoacing based on method by Hamilton and Adams\n"
 	"-w specifies width (defaults to 640)\n"
 	"-H specifies height (defaults to 480)\n"
 	"-sq squrate root curves the image\n"
@@ -221,72 +225,13 @@ void deBayerHQl(uint8_t *in,uint8_t * out){
 	free(inf);
 	free(outf);
 }
-void deBayerBL(uint8_t * in,uint8_t * out){
-	uint32_t x,y;
-	for (y=0;y<img_h*img_w;y+=img_w_2){
-		for (x=0;x<img_w;x+=2){
-			/*	B Gb
-				Gr R*/
-			if(y!=0){
-				if(x!=0)
-					out[x*3]=(in[y+x+1+img_w]+in[y+x+1-img_w]+in[y+x-1+img_w]+in[y+x-1-img_w])/4;//red
-				else
-					out[x*3]=(in[y+x+1+img_w]+in[y+x+1-img_w])/2;//red
-			}else{
-				if(x!=0)
-					out[x*3]=(in[y+x+1+img_w]+in[y+x-1+img_w])/2;//red
-				else
-					out[x*3]=in[y+x+1+img_w];//red
-			}
-			if(y!=0){
-				if(x!=0)
-					out[(x*3)+1]=(in[x+y-img_w]+in[x+y-1]+in[x+y+1]+in[x+y+img_w])/4;
-				else
-					out[(x*3)+1]=(in[x+y-img_w]+in[x+y+img_w]+in[x+y+1])/3;
-			}else{
-				if(x!=0)
-					out[(x*3)+1]=(in[y+x-1]+in[y+x+1]+in[y+x+img_w])/3;
-				else
-					out[(x*3)+1]=(in[y+x+1]+in[y+x+img_w])/2;//green
-			}
-			out[(x*3)+2]=in[y+x];//blue
-			if(y!=0)
-				out[(x*3)+3]=(in[y+x+1+img_w]+in[y+x+1-img_w])/2;//red
-			else
-				out[(x*3)+3]=in[y+x+1+img_w];
-			out[(x*3)+4]=in[y+x+1];//green
-			out[(x*3)+5]=(in[x+y]+in[x+y+2])/2;//blue
-			
-			if(x!=0)
-				out[((x+img_w)*3)]=(in[x+y+img_w+1]+in[x+y+img_w-1])/2;//red
-			else
-				out[((x+img_w)*3)]=in[x+y+img_w+1];//red
-			out[((x+img_w)*3)+1]=in[y+x+img_w];//green
-			out[((x+img_w)*3)+2]=(in[x+y]+in[x+y+img_w_2])/2;//get blue
-			
-			out[((x+img_w)*3)+3]=in[y+x+1+img_w];//red
-			out[((x+img_w)*3)+4]=(in[x+y+1]+in[x+y+1+img_w_2]+in[x+y+img_w]+in[x+y+img_w+2])/4;//green
-			out[((x+img_w)*3)+5]=(in[x+y]+in[x+y+2]+in[x+y+img_w_2]+in[x+y+2+img_w_2])/4;
-		}
-		out+=img_w*6;
-		//in+=img_w_2;
-	}
+void deBayerV(uint8_t * in,uint8_t * out){
+//from http://www.eie.polyu.edu.hk/~enyhchan/J-TIP-CDemosaicking_using_VarCD.pdf
 	
 }
-void deBayerV(uint8_t * in,uint8_t * out)
-{//from http://www.eie.polyu.edu.hk/~enyhchan/J-TIP-CDemosaicking_using_VarCD.pdf
-	
-}
-void Adaptive_Color_Plane_Interpolation(uint8_t * in,uint8_t * out){// http://www.ece.ncsu.edu/imaging/Publications/2002/demosaicking-JEI-02.pdf
-	uint32_t x,y;
-	for (y=0;y<img_h;y+=2){
-		for (x=0;x<img_w;x+=2){
-			int a,B;
-		}
-	}
-}
-void deBayerSSDD(uint8_t * in,uint8_t * out)
-{//from http://www.ipol.im/pub/art/2011/bcms-ssdd/
+
+void deBayerSSDD(uint8_t * in,uint8_t * out){
+//from http://www.ipol.im/pub/art/2011/bcms-ssdd/
 	//This is a two pass method it first calles Adaptive_Color_Plane_Interpolation then improves the results
 	uint32_t x,y;
 	for (y=0;y<img_h;y+=2){
@@ -297,8 +242,8 @@ void deBayerSSDD(uint8_t * in,uint8_t * out)
 		}
 	}
 }
-void deBayerQ(uint8_t * in,uint8_t * out)
-{//generates quater resolution but pixel has real RGB value at each location
+void deBayerQ(uint8_t * in,uint8_t * out){
+//generates quater resolution but pixel has real RGB value at each location
 	uint32_t x,y;
 	for (y=0;y<img_ho;++y){
 		for (x=0;x<img_w;x+=2){
@@ -373,12 +318,14 @@ void rgb565torgb888(uint8_t * in,uint8_t * out){
 		*out++=((*in++)&31)*255/31;
 	}
 }
-uint8_t processImg(uint8_t * in,uint8_t * out,uint32_t numf,uint8_t alg,uint16_t offset,uint8_t sqrtUse,uint8_t sineUse,char * fileName){
+static uint8_t processImg(uint8_t * in,uint8_t * out,uint32_t numf,uint8_t alg,uint16_t offset,int sqrtUse,int sineUse,char * fileName){
 	if (readImg(numf,offset,in,alg,fileName))
 		return 1;
 	switch (alg){
 	case ALG_YUV_0:
 	case ALG_YUV_1:
+	case ALG_YUV_2:
+	case ALG_YUV_3:
 		yuv2rgb(in,out,alg,img_w,img_h);
 	break;
 	case ALG_DEBAYER_HQ:
@@ -388,13 +335,16 @@ uint8_t processImg(uint8_t * in,uint8_t * out,uint32_t numf,uint8_t alg,uint16_t
 		rgb565torgb888(in,out);
 	break;
 	case ALG_DEBAYER_BL:
-		deBayerBL(in,out);
+		deBayerBL(in,out,img_w,img_h);
 	break;
 	case ALG_DEBAYER_Q:
 		deBayerQ(in,out);//causes low resolution but it's like have a 3cmos sensor or foveon sensor
 	break;
 	case ALG_DEBAYER_N:
 		deBayerN(in,out);//nearest neighboor low quality but fast
+	break;
+	case ALG_ADAPTIVE:
+		Adaptive_Color_Plane_Interpolation(in,out,img_w,img_h);
 	break;
 	default:
 		puts("You must pick a valid algorithm to save the image as");
@@ -491,10 +441,14 @@ int main(int argc,char ** argv){
 									case 'q':
 										debayer=ALG_DEBAYER_Q;
 									break;
+									case 'a':
+										debayer=ALG_ADAPTIVE;
+									break;
 									default:
 										unReconizedSub('d',argv[arg][1]);
 										return 1;
 								}
+							break;
 							case 'r':
 								debayer=ALG_RGB565;
 							break;
@@ -505,6 +459,12 @@ int main(int argc,char ** argv){
 									break;
 									case 'a':
 										debayer=ALG_YUV_1;
+									break;
+									case 'b':
+										debayer=ALG_YUV_2;
+									break;
+									case 'c':
+										debayer=ALG_YUV_3;
 									break;
 									default:
 										unReconizedSub('y',argv[arg][1]);
@@ -556,7 +516,7 @@ int main(int argc,char ** argv){
 			}
 		}
 	}
-	uint8_t * Dat;//in case some of the file was not saved we use calloc instead of malloc to garentte that the unsaved pixels are set to 0
+	uint8_t * Dat;//in case some of the file was not saved we use calloc instead of malloc to guarantee that the unsaved pixels are set to 0
 	Dat = calloc(img_w*img_h,bytesPerPixel(debayer));
 	if(debayer==ALG_DEBAYER_Q){
 		img_wo/=2;

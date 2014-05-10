@@ -1,4 +1,4 @@
-objects = main.o tables.o savePng.o yuv.o
+objects = main.o tables.o savePng.o yuv.o bilinear.o adaptive.o pixels.o
 
 yuv: $(objects)
 	gcc -o convert -O2 -s -lm -lpng -Wall -Wextra $(objects)
