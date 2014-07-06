@@ -1,52 +1,28 @@
 #include <stdint.h>
+#include "pixels.h"
 void deBayerBL(uint8_t * in,uint8_t * out,uint32_t img_w,uint32_t img_h){
-	uint32_t img_w_2=img_w*2;
-	uint32_t x,y;
-	for (y=0;y<img_h*img_w;y+=img_w_2){
-		for (x=0;x<img_w;x+=2){
-			/*	B Gb
-				Gr R*/
-			if(y!=0){
-				if(x!=0)
-					out[x*3]=(in[y+x+1+img_w]+in[y+x+1-img_w]+in[y+x-1+img_w]+in[y+x-1-img_w])/4;//red
-				else
-					out[x*3]=(in[y+x+1+img_w]+in[y+x+1-img_w])/2;//red
-			}else{
-				if(x!=0)
-					out[x*3]=(in[y+x+1+img_w]+in[y+x-1+img_w])/2;//red
-				else
-					out[x*3]=in[y+x+1+img_w];//red
-			}
-			if(y!=0){
-				if(x!=0)
-					out[(x*3)+1]=(in[x+y-img_w]+in[x+y-1]+in[x+y+1]+in[x+y+img_w])/4;
-				else
-					out[(x*3)+1]=(in[x+y-img_w]+in[x+y+img_w]+in[x+y+1])/3;
-			}else{
-				if(x!=0)
-					out[(x*3)+1]=(in[y+x-1]+in[y+x+1]+in[y+x+img_w])/3;
-				else
-					out[(x*3)+1]=(in[y+x+1]+in[y+x+img_w])/2;//green
-			}
-			out[(x*3)+2]=in[y+x];//blue
-			if(y!=0)
-				out[(x*3)+3]=(in[y+x+1+img_w]+in[y+x+1-img_w])/2;//red
-			else
-				out[(x*3)+3]=in[y+x+1+img_w];
-			out[(x*3)+4]=in[y+x+1];//green
-			out[(x*3)+5]=(in[x+y]+in[x+y+2])/2;//blue
-			
-			if(x!=0)
-				out[((x+img_w)*3)]=(in[x+y+img_w+1]+in[x+y+img_w-1])/2;//red
-			else
-				out[((x+img_w)*3)]=in[x+y+img_w+1];//red
-			out[((x+img_w)*3)+1]=in[y+x+img_w];//green
-			out[((x+img_w)*3)+2]=(in[x+y]+in[x+y+img_w_2])/2;//get blue
-			
-			out[((x+img_w)*3)+3]=in[y+x+1+img_w];//red
-			out[((x+img_w)*3)+4]=(in[x+y+1]+in[x+y+1+img_w_2]+in[x+y+img_w]+in[x+y+img_w+2])/4;//green
-			out[((x+img_w)*3)+5]=(in[x+y]+in[x+y+2]+in[x+y+img_w_2]+in[x+y+2+img_w_2])/4;
+	int32_t x,y;
+	for (y=0;y<img_h/2;++y){
+		for (x=0;x<img_w/2;++x){
+				/* The following pattern is assumed for this code:
+				 * B Gb
+				 * Gr R*/
+
+				setPX(x*2,y*2,RED_RGB,(getBP(x,y,RED)+getBP(x-1,y,RED)+getBP(x,y-1,RED)+getBP(x-1,y-1,RED))/4);
+				setPX(x*2,y*2,GREEN_RGB,(getBP(x,y,GREEN_BLUE)+getBP(x-1,y,GREEN_BLUE)+getBP(x,y,GREEN_RED)+getBP(x,y-1,GREEN_RED))/4);
+				setPX(x*2,y*2,BLUE_RGB,getBP(x,y,BLUE));
+				
+				setPX(x*2+1,y*2,RED_RGB,(getBP(x,y,RED)+getBP(x,y-1,RED))/2);
+				setPX(x*2+1,y*2,GREEN_RGB,getBP(x,y,GREEN_BLUE));
+				setPX(x*2+1,y*2,BLUE_RGB,(getBP(x,y,BLUE)+getBP(x+1,y,BLUE))/2);
+
+				setPX(x*2,y*2+1,RED_RGB,(getBP(x,y,RED)+getBP(x-1,y,RED))/2);
+				setPX(x*2,y*2+1,GREEN_RGB,getBP(x,y,GREEN_RED));
+				setPX(x*2,y*2+1,BLUE_RGB,(getBP(x,y,BLUE)+getBP(x,y+1,BLUE))/2);
+
+				setPX(x*2+1,y*2+1,RED_RGB,getBP(x,y,RED));
+				setPX(x*2+1,y*2+1,GREEN_RGB,(getBP(x,y,GREEN_BLUE)+getBP(x,y+1,GREEN_BLUE)+getBP(x,y,GREEN_RED)+getBP(x+1,y,GREEN_RED))/4);
+				setPX(x*2+1,y*2+1,BLUE_RGB,(getBP(x,y,BLUE)+getBP(x+1,y,BLUE)+getBP(x,y+1,BLUE)+getBP(x+1,y+1,BLUE))/4);
 		}
-		out+=img_w*6;
 	}
 }
