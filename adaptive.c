@@ -1,8 +1,6 @@
 #include <stdint.h>
 #include <math.h>
 #include "pixels.h"
-#define getBP(x,y,col) getBayerPixel(in,x,y,img_w,img_h,col)
-#define setPX(x,y,col,val) setPixelBounds(out,x,y,img_w,img_h,col,val)
 void Adaptive_Color_Plane_Interpolation(uint8_t * in,uint8_t * out,uint32_t img_w,uint32_t img_h){// http://www.ece.ncsu.edu/imaging/Publications/2002/demosaicking-JEI-02.pdf
 	uint32_t x,y;
 	for (y=0;y<img_h/2;++y){

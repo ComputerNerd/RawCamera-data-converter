@@ -1,16 +1,16 @@
 /*
 	This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    any later version.
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation, either version 3 of the License, or
+	any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+	You should have received a copy of the GNU General Public License
+	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 //to compile just run make
 #include <inttypes.h>
@@ -70,8 +70,7 @@ static void showHelp(){
 }
 
 void MalvarDemosaic(float *Output, const float *Input, int Width, int Height, 
-    int RedX, int RedY)//I do not take credit for this function the code is from http://www.ipol.im/pub/art/2011/g_mhcd/
-{
+    int RedX, int RedY){//I do not take credit for this function the code is from http://www.ipol.im/pub/art/2011/g_mhcd/
     const int BlueX = 1 - RedX;
     const int BlueY = 1 - RedY;
     float *OutputRed = Output;
@@ -318,9 +317,22 @@ void rgb565torgb888(uint8_t * in,uint8_t * out){
 		*out++=((*in++)&31)*255/31;
 	}
 }
-static uint8_t processImg(uint8_t * in,uint8_t * out,uint32_t numf,uint8_t alg,uint16_t offset,int sqrtUse,int sineUse,char * fileName){
-	if (readImg(numf,offset,in,alg,fileName))
-		return 1;
+/* This function handles the processing of images
+ * Paramaters:
+ * in - must point to vaild memory enough to store img_w*img_h or img_w*img_h*2 depening on algorithm
+ * out - must point to vaild memory enough to store img_wo*img_ho*3
+ * numf - if fineName is set to 0 then this number will be used to generate a filename
+ * alg - the algorithm being used to convert the image data
+ * offset - how many bytes to skip when reading the file
+ * sqrtUse do you want to use sqrt based brightness increase table
+ * sineUse do you want to use sine based brightness increase table
+ * filename if specified the file will be loaded instead of using numf
+ * inDat do you want to skip reading a file and instead use data already present in *in */
+static uint8_t processImg(uint8_t * in,uint8_t * out,uint32_t numf,uint8_t alg,uint16_t offset,int sqrtUse,int sineUse,char * fileName,int inDat){
+	if(!inDat){
+		if(readImg(numf,offset,in,alg,fileName))
+			return 1;
+	}
 	switch (alg){
 	case ALG_YUV_0:
 	case ALG_YUV_1:
@@ -367,20 +379,20 @@ static uint8_t processImg(uint8_t * in,uint8_t * out,uint32_t numf,uint8_t alg,u
 	}
 	return 0;
 }
-void avgF(uint16_t numf,uint8_t * inout){
-	uint16_t * temp=malloc(img_w*img_h*3*numf*sizeof(uint16_t));
-	uint64_t xy;
-	uint64_t nl;
-	for (xy=0;xy<img_w*img_h*3;xy++)
+static void avgF(uint_fast32_t numf,uint8_t * inout){
+	uint32_t * temp=malloc(img_w*img_h*sizeof(uint32_t));
+	uint_fast32_t xy;
+	uint_fast32_t nl;
+	for(xy=0;xy<img_w*img_h;++xy)
 		temp[xy]=inout[xy];
-	for (nl=img_w*img_h*3;nl<numf*img_w*img_h*3;nl+=img_w*img_h*3){
+	for(nl=img_w*img_h;nl<numf*img_w*img_h;nl+=img_w*img_h){
 		//printf("Adding %d\n",nl/img_w/img_h/3);
 		for (xy=0;xy<=img_w*img_h*3;xy++)
 			temp[xy]+=inout[xy+nl];
 	}
-	for (xy=0;xy<img_w*img_h*3;xy++)
+	for(xy=0;xy<img_w*img_h;++xy)
 		temp[xy]/=numf;
-	for (xy=0;xy<img_w*img_h*3;xy++)
+	for(xy=0;xy<img_w*img_h;++xy)
 		inout[xy]=temp[xy];
 	free(temp);
 }
@@ -389,13 +401,13 @@ static void unReconizedSub(char o,char s){
 	showHelp();
 }
 int main(int argc,char ** argv){
-	uint8_t useNum=0;
-	uint32_t useImg=0;
-	uint16_t offset=0;
-	uint8_t debayer=ALG_DEBAYER_HQ;
-	uint16_t numImg=1;
-	uint8_t sqrtUse=0;
-	uint8_t sineUse=0;
+	unsigned useNum=0;
+	unsigned useImg=0;
+	unsigned offset=0;
+	unsigned debayer=ALG_DEBAYER_HQ;
+	unsigned numImg=1;
+	unsigned sqrtUse=0;
+	unsigned sineUse=0;
 	char * fileName=0;
 	buf=malloc(128);
 	if (argc>1){
@@ -517,55 +529,60 @@ int main(int argc,char ** argv){
 		}
 	}
 	uint8_t * Dat;//in case some of the file was not saved we use calloc instead of malloc to guarantee that the unsaved pixels are set to 0
-	Dat = calloc(img_w*img_h,bytesPerPixel(debayer));
+	if(useNum!=2)
+		Dat = calloc(img_w*img_h,bytesPerPixel(debayer));
 	if(debayer==ALG_DEBAYER_Q){
 		img_wo/=2;
 		img_ho/=2;
 	}
-	uint8_t * outImg = malloc(img_wo*img_ho*numImg*3);//all bytes in the array will be overwritten no need for calloc
-	if (useNum==1){
-		processImg(Dat,outImg,useImg,debayer,offset,sqrtUse,sineUse,0);
+	uint8_t * outImg = malloc(img_wo*img_ho*3);//all bytes in the array will be overwritten no need for calloc
+	switch(useNum){
+		case 1:
+		processImg(Dat,outImg,useImg,debayer,offset,sqrtUse,sineUse,0,0);
 		sprintf(buf,"frame %d.png",useImg);
-		if (savePNG(buf,img_wo,img_ho,outImg)){
+		if(savePNG(buf,img_wo,img_ho,outImg)){
 			puts("Error while saving PNG");
 			return 1;
 		}
-	}
-	else if (useNum==3){
-		processImg(Dat,outImg,useImg,debayer,offset,sqrtUse,sineUse,fileName);
-		sprintf(buf,"%s.png",fileName);
-		if (savePNG(buf,img_wo,img_ho,outImg)){
-			puts("Error while saving PNG");
-			return 1;
-		}
-	}
-	else if (useNum==2){
-		uint32_t nl;
-		for (nl=0;nl<numImg;nl++){
-			printf("Reading %d\n",nl);
-			processImg(Dat,outImg+(nl*img_wo*img_ho*3),useImg+nl,debayer,offset,sqrtUse,sineUse,0);
-		}
-		avgF(numImg,outImg);
-		sprintf(buf,"frame %d-%d.png",useImg,useImg+numImg-1);
-		if (savePNG(buf,img_wo,img_ho,outImg)){
-			puts("Error while saving PNG");
-			return 1;
-		}
-	}else{
-		uint32_t imgC=0;
-		for (;;imgC++){
-			printf("Saving image %d\n",imgC);
-			if (processImg(Dat,outImg,imgC,debayer,offset,sqrtUse,sineUse,0))
-				goto quit;
-			sprintf(buf,"frame %d.png",imgC);
+		break;
+		case 2:
+			{uint32_t nl;
+			uint8_t*bayerTmp=malloc(img_w*img_h*numImg);
+			for(nl=0;nl<numImg;++nl){
+				printf("Reading %d\n",nl);
+				readImg(nl,offset,bayerTmp+(nl*img_w*img_h),debayer,0);
+			}
+			avgF(numImg,bayerTmp);
+			processImg(bayerTmp,outImg,useImg,debayer,offset,sqrtUse,sineUse,0,1);
+			sprintf(buf,"frame %d-%d.png",useImg,useImg+numImg-1);
+			if(savePNG(buf,img_wo,img_ho,outImg)){
+				puts("Error while saving PNG");
+				return 1;
+			}}
+		break;
+		case 3:
+			processImg(Dat,outImg,useImg,debayer,offset,sqrtUse,sineUse,fileName,0);
+			sprintf(buf,"%s.png",fileName);
 			if (savePNG(buf,img_wo,img_ho,outImg)){
 				puts("Error while saving PNG");
 				return 1;
 			}
-		}
+		break;
+		default:
+			{uint32_t imgC=0;
+			for(;;++imgC){
+				printf("Saving image %d\n",imgC);
+				if(processImg(Dat,outImg,imgC,debayer,offset,sqrtUse,sineUse,0,0))
+					break;
+				sprintf(buf,"frame %d.png",imgC);
+				if(savePNG(buf,img_wo,img_ho,outImg)){
+					puts("Error while saving PNG");
+					return 1;
+				}
+			}}
 	}
-quit:
-	free(Dat);
+	if(useNum!=2)
+		free(Dat);
 	free(outImg);
 	free(buf);
 	return 0;
