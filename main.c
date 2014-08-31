@@ -41,29 +41,29 @@ static void showHelp(){
 	"There are two ways to specify a file the first is to simply specify a file\n"
 	"Using the -f argument you can specify a file that you want to convert\n"
 	"Another option that you have is to have files that start with a number and end in .RAW\n"
-	"This program will cound from 0 and convert thoese images and keep going until fopen fails\n"
+	"This program will count from 0 and convert those images and keep going until fopen fails\n"
 	"You can also convert just one numbered image with the -n argument\n"
 	"-n x replace x with the image number you want to convert\n"
 	"-h or --help shows the message that you are viewing right now\n"
 	"-o x replace x with a real positive integer that is less than the filesize of the image in which you are opening\n"
 	"This skips x number of bytes\n"
-	"-a x replace x with the amount of frames that you wish to averge\n"
+	"-a x replace x with the amount of frames that you wish to average\n"
 	"Don't use this if you don't want to average frames\n"
-	"-c picks which algorthim you would like to use.\n"
-	"You can specify either 'y', 'ya', 'd', 'dq', 'dn', 'dl' but without the quotes and commaas\n"
+	"-c picks which algorithm you would like to use.\n"
+	"You can specify either 'y', 'ya', 'd', 'dq', 'dn', 'dl' but without the quotes and commas\n"
 	"y means yuv422 conversion\n"
 	"r means rgb565\n"
-	"dq means to take debayered data and output quater resolution but it does not to any interopulation instead it takes the 4 one color pixels and makes one\n"
-	"dn means use neighest neighboor demosaicing instead of bilinear\n"
+	"dq means to take debayered data and output quarter resolution but it does not to any interpolation instead it takes the 4 one color pixels and makes one\n"
+	"dn means use nearest neighbor demosaicing instead of bilinear\n"
 	"d (default) is a higher quality demosaicing algorithm based on\n"
 	"https://research.microsoft.com/en-us/um/people/lhe/papers/icassp04.demosaicing.pdf\n"
 	"dl is simple bilinear demoasicing\n"
-	"da is adapative demoacing based on method by Hamilton and Adams\n"
+	"da is adaptive demoacing based on method by Hamilton and Adams\n"
 	"-w specifies width (defaults to 640)\n"
 	"-H specifies height (defaults to 480)\n"
-	"-sq squrate root curves the image\n"
+	"-sq square root curves the image\n"
 	"(This makes the image brighter without too much clipping)\n"
-	"using this forumla sqrt(255.0)*sqrt(x)"
+	"using this formula sqrt(255.0)*sqrt(x)"
 	"-s sine curves the image using this formula\n"
 	"(int)floor((sin((double)x/(255.0/PI*2.075))*255.0)+0.5)\n"
 	"-sq and -s can be combined");
@@ -231,7 +231,7 @@ void deBayerV(uint8_t * in,uint8_t * out){
 
 void deBayerSSDD(uint8_t * in,uint8_t * out){
 //from http://www.ipol.im/pub/art/2011/bcms-ssdd/
-	//This is a two pass method it first calles Adaptive_Color_Plane_Interpolation then improves the results
+	//This is a two pass method it first calls Adaptive_Color_Plane_Interpolation then improves the results
 	uint32_t x,y;
 	for (y=0;y<img_h;y+=2){
 		for (x=0;x<img_w;x+=2){
