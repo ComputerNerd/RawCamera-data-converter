@@ -29,15 +29,13 @@ uint32_t img_w_3=1920;
 uint32_t img_h=480;
 uint32_t img_wo=640;
 uint32_t img_ho=480;
-
 char * buf;
-
 static inline int bytesPerPixel(uint8_t alg){
 	return (alg<=BPP2AMT)?2:1;
 }
 
 static void showHelp(){
-	puts("Raw data image converter\n"
+	puts("Raw image data to PNG converter\n"
 	"There are two ways to specify a file the first is to simply specify a file\n"
 	"Using the -f argument you can specify a file that you want to convert\n"
 	"Another option that you have is to have files that start with a number and end in .RAW\n"
