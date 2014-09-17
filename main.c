@@ -51,12 +51,12 @@ static void showHelp(){
 	"You can specify either 'y', 'ya', 'd', 'dq', 'dn', 'dl' but without the quotes and commas\n"
 	"y means yuv422 conversion\n"
 	"r means rgb565\n"
-	"dq means to take debayered data and output quarter resolution but it does not to any interpolation instead it takes the 4 one color pixels and makes one\n"
+	"dq means to generate quarter resolution from bayer data but it does not do any interpolation instead it takes the 4 one color pixels and makes one. The two greens are averaged.\n"
 	"dn means use nearest neighbor demosaicing instead of bilinear\n"
 	"d (default) is a higher quality demosaicing algorithm based on\n"
 	"https://research.microsoft.com/en-us/um/people/lhe/papers/icassp04.demosaicing.pdf\n"
-	"dl is simple bilinear demoasicing\n"
-	"da is adaptive demoacing based on method by Hamilton and Adams\n"
+	"dl is simple bilinear demosaicing\n"
+	"da is adaptive demoasicing based on method by Hamilton and Adams\n"
 	"-w specifies width (defaults to 640)\n"
 	"-H specifies height (defaults to 480)\n"
 	"-sq square root curves the image\n"
@@ -394,7 +394,7 @@ static void avgF(uint_fast32_t numf,uint8_t * inout){
 	free(temp);
 }
 static void unReconizedSub(char o,char s){
-	printf("Unreconized suboption %c of %c\n",s,o);
+	printf("Unrecognized suboption %c of %c\n",s,o);
 	showHelp();
 }
 int main(int argc,char ** argv){
@@ -414,7 +414,7 @@ int main(int argc,char ** argv){
 			if(argv[arg][0]=='-'){
 				switch(argv[arg][1]){
 					case '-':
-						//extented arguments
+						//extended arguments
 						if((strcmp(argv[arg],"--help")==0)){
 							showHelp();
 							return 0;
